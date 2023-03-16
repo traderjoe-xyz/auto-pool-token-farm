@@ -14,17 +14,20 @@ abstract contract TestHelper is Test {
 
     ERC20Mock lpToken1;
     ERC20Mock lpToken2;
+    ERC20Mock lpToken3;
 
-    function setUp() public {
+    function setUp() public virtual {
         joe = new ERC20Mock(18);
         lpToken1 = new ERC20Mock(18);
         lpToken2 = new ERC20Mock(18);
+        lpToken3 = new ERC20Mock(18);
 
         aptFarm = new APTFarm(joe);
 
         vm.label(address(joe), "joe");
         vm.label(address(lpToken1), "lpToken1");
         vm.label(address(lpToken2), "lpToken2");
+        vm.label(address(lpToken2), "lpToken3");
         vm.label(address(aptFarm), "aptFarm");
 
         deal(address(joe), address(aptFarm), 1e38);
