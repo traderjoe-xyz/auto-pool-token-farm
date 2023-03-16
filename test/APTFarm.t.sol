@@ -11,6 +11,7 @@ contract APTFarmTest is TestHelper {
     event UpdatePool(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
     event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event RewardsWithdrawn(address indexed to, uint256 amount);
 
     function test_Deploy() public {
         aptFarm = new APTFarm(joe);
@@ -214,5 +215,36 @@ contract APTFarmTest is TestHelper {
         assertEq(lpToken1.balanceOf(address(this)), lpTokenBalanceBefore + amountDeposited, "test_EmergencyWithdraw::1");
         assertEq(aptFarm.userInfo(0, address(this)).amount, 0, "test_EmergencyWithdraw::2");
         assertEq(aptFarm.userInfo(0, address(this)).rewardDebt, 0, "test_EmergencyWithdraw::2");
+    }
+
+    function test_WithdrawRewards(uint256 amount) public {
+        uint256 rewardsOnContracts = joe.balanceOf(address(aptFarm));
+
+        amount = bound(amount, 0, rewardsOnContracts);
+
+        uint256 joeBalanceBefore = joe.balanceOf(address(this));
+
+        if (amount == 0) {
+            vm.expectEmit();
+            emit RewardsWithdrawn(address(this), rewardsOnContracts);
+        } else {
+            vm.expectEmit();
+            emit RewardsWithdrawn(address(this), amount);
+        }
+        aptFarm.withdrawRewards(address(this), amount);
+
+        if (amount == 0) {
+            assertEq(joe.balanceOf(address(this)) - joeBalanceBefore, rewardsOnContracts, "test_WithdrawRewards::1");
+        } else {
+            assertEq(joe.balanceOf(address(this)) - joeBalanceBefore, amount, "test_WithdrawRewards::2");
+        }
+    }
+
+    function test_Revert_WithdrawRewardsWhenNotOwner(address alice) public {
+        vm.assume(alice != address(this));
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(alice);
+        aptFarm.withdrawRewards(address(this), 0);
     }
 }
