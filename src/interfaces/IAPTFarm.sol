@@ -15,6 +15,7 @@ interface IAPTFarm {
     event UpdatePool(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
     event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event RewardsWithdrawn(address indexed to, uint256 amount);
 
     /// @notice Info of each MCJV3 user.
     /// `amount` LP token amount the user has provided.
@@ -66,4 +67,6 @@ interface IAPTFarm {
     function withdraw(uint256 pid, uint256 amount) external;
 
     function emergencyWithdraw(uint256 pid) external;
+
+    function withdrawRewards(address to, uint256 amount) external;
 }
