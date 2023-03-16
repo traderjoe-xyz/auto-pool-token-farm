@@ -16,7 +16,7 @@ contract APTFarmTest is TestHelper {
         aptFarm = new APTFarm(joe);
 
         assertTrue(address(aptFarm) != address(0));
-        assertEq(address(aptFarm.JOE()), address(joe));
+        assertEq(address(aptFarm.joe()), address(joe));
         assertEq(aptFarm.poolLength(), 0);
     }
 
@@ -143,7 +143,7 @@ contract APTFarmTest is TestHelper {
         skip(depositTime);
 
         vm.expectRevert(
-            abi.encodeWithSelector(APTFarm.APTFarm__InsufficientBalance.selector, amountDeposited, amountWithdrawn)
+            abi.encodeWithSelector(IAPTFarm.APTFarm__InsufficientBalance.selector, amountDeposited, amountWithdrawn)
         );
         aptFarm.withdraw(0, amountWithdrawn);
     }

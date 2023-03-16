@@ -3,10 +3,11 @@ pragma solidity 0.8.10;
 
 import "forge-std/Test.sol";
 
-import {APTFarm, IRewarder} from "src/APTFarm.sol";
-import {ERC20Mock} from "./mocks/ERC20.sol";
-
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+
+import {APTFarm, IAPTFarm} from "src/APTFarm.sol";
+import {IRewarder} from "src/interfaces/IRewarder.sol";
+import {ERC20Mock} from "./mocks/ERC20.sol";
 
 abstract contract TestHelper is Test {
     APTFarm aptFarm;
