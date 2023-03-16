@@ -17,17 +17,24 @@ interface IAPTFarm {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event RewardsWithdrawn(address indexed to, uint256 amount);
 
-    /// @notice Info of each MCJV3 user.
-    /// `amount` LP token amount the user has provided.
-    /// `rewardDebt` The amount of JOE entitled to the user.
+    /**
+     * @notice Info of each APTFarm user.
+     * `amount` LP token amount the user has provided.
+     * `rewardDebt` The amount of JOE entitled to the user.
+     */
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
     }
 
-    /// @notice Info of each MCJV3 pool.
-    /// `allocPoint` The amount of allocation points assigned to the pool.
-    /// Also known as the amount of JOE to distribute per block.
+    /**
+     * @notice Info of each APTFarm pool.
+     * `lpToken` Address of the LP token.
+     * `accJoePerShare` Accumulated JOE per share.
+     * `lastRewardTimestamp` Last timestamp that JOE distribution occurs.
+     * `joePerSec` JOE tokens distributed per second.
+     * `rewarder` Address of the rewarder contract that handles the distribution of bonus tokens.
+     */
     struct PoolInfo {
         IERC20 lpToken;
         uint256 accJoePerShare;
