@@ -4,6 +4,8 @@ pragma solidity 0.8.10;
 import "./TestHelper.sol";
 
 contract APTFarmTest is TestHelper {
+    using stdStorage for StdStorage;
+
     event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -144,9 +146,39 @@ contract APTFarmTest is TestHelper {
         skip(depositTime);
 
         vm.expectRevert(
-            abi.encodeWithSelector(IAPTFarm.APTFarm__InsufficientBalance.selector, amountDeposited, amountWithdrawn)
+            abi.encodeWithSelector(IAPTFarm.APTFarm__InsufficientDeposit.selector, amountDeposited, amountWithdrawn)
         );
         aptFarm.withdraw(0, amountWithdrawn);
+    }
+
+    function test_InsufficientRewardsOnTheContract(
+        uint256 joePerSec,
+        uint256 amountDeposited,
+        uint256 depositTime,
+        uint256 joeBalance
+    ) public {
+        depositTime = bound(depositTime, 100, 1e8 days);
+        joePerSec = bound(joePerSec, 1e12, 1e24);
+        amountDeposited = bound(amountDeposited, 1e10, 1e28);
+
+        _add(lpToken1, joePerSec);
+        _deposit(0, amountDeposited);
+
+        skip(depositTime);
+
+        (uint256 pendingRewards,,,) = aptFarm.pendingTokens(0, address(this));
+
+        joeBalance = bound(joeBalance, 0, pendingRewards - 1);
+        stdstore.target(address(joe)).sig("balanceOf(address)").with_key(address(aptFarm)).checked_write(joeBalance);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAPTFarm.APTFarm__InsufficientRewardBalance.selector, joeBalance, pendingRewards)
+        );
+        aptFarm.withdraw(0, amountDeposited);
+
+        aptFarm.emergencyWithdraw(0);
+
+        assertEq(lpToken1.balanceOf(address(this)), amountDeposited, "test_InsufficientRewardsOnTheContract::1");
     }
 
     function test_SetPool(uint256 oldJoePerSec, uint256 newJoePerSec, uint256 timePassed) public {

@@ -6,7 +6,8 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IE
 import {IRewarder} from "./IRewarder.sol";
 
 interface IAPTFarm {
-    error APTFarm__InsufficientBalance(uint256 contractBalance, uint256 amountNeeded);
+    error APTFarm__InsufficientDeposit(uint256 deposit, uint256 amountWithdrawn);
+    error APTFarm__InsufficientRewardBalance(uint256 contractBalance, uint256 amountNeeded);
 
     event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);

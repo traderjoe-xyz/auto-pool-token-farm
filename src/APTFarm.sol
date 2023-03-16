@@ -238,7 +238,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         uint256 userRewardDebt = user.rewardDebt;
 
         if (userAmount < amount) {
-            revert APTFarm__InsufficientBalance(userAmount, amount);
+            revert APTFarm__InsufficientDeposit(userAmount, amount);
         }
 
         if (userAmount > 0) {
@@ -349,7 +349,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         uint256 contractBalance = joe.balanceOf(address(this));
         if (contractBalance < pending) {
-            revert APTFarm__InsufficientBalance(contractBalance, pending);
+            revert APTFarm__InsufficientRewardBalance(contractBalance, pending);
         }
         joe.safeTransfer(msg.sender, pending);
 
