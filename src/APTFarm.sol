@@ -41,6 +41,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     IERC20 public immutable override joe;
 
     /**
+     * @notice Accounted balances of AP tokens in the farm.
+     */
+
+    mapping(address => uint256) public override apTokenBalances;
+
+    /**
      * @param _joe The joe token contract address.
      */
     constructor(IERC20 _joe) {
@@ -149,7 +155,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         UserInfo storage userInfoCached = _userInfo[pid][user];
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            _refreshPoolState(pool);
+            uint256 apTokenSupply = apTokenBalances[address(pool.apToken)];
+            _refreshPoolState(pool, apTokenSupply);
         }
 
         pendingJoe = (userInfoCached.amount * pool.accJoePerShare) / ACC_TOKEN_PRECISION - userInfoCached.rewardDebt;
@@ -190,6 +197,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         user.amount = userAmount;
         user.rewardDebt = userRewardDebt;
+        apTokenBalances[address(pool.apToken)] += receivedAmount;
 
         // Interactions
         IRewarder _rewarder = pool.rewarder;
@@ -227,6 +235,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         // Effects
         user.amount = userAmount;
         user.rewardDebt = userRewardDebt;
+        apTokenBalances[address(pool.apToken)] -= amount;
 
         // Interactions
         IRewarder _rewarder = pool.rewarder;
@@ -250,6 +259,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
+        apTokenBalances[address(pool.apToken)] -= amount;
 
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
@@ -277,17 +287,32 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
+     * @notice Allows owner to withdraw any AP tokens that have been sent to the APTFarm by mistake.
+     * @param token The address of the AP token to skim.
+     * @param to The address to send the AP token to.
+     */
+    function skim(IERC20 token, address to) external override onlyOwner {
+        uint256 contractBalance = token.balanceOf(address(this));
+        uint256 totalDeposits = apTokenBalances[address(token)];
+
+        if (contractBalance > totalDeposits) {
+            uint256 amount = contractBalance - totalDeposits;
+            token.safeTransfer(to, amount);
+            emit Skim(address(token), to, amount);
+        }
+    }
+
+    /**
      * @dev Get the new pool state if time passed since last update.
      * @dev View function that needs to be commited if effectively updating the pool.
      * @param pool The pool to update.
+     * @param apTokenSupply The total amount of APT tokens in the pool.
      */
-    function _refreshPoolState(PoolInfo memory pool) internal view {
-        uint256 lpSupply = pool.apToken.balanceOf(address(this));
-
-        if (lpSupply > 0) {
+    function _refreshPoolState(PoolInfo memory pool, uint256 apTokenSupply) internal view {
+        if (apTokenSupply > 0) {
             uint256 secondsElapsed = block.timestamp - pool.lastRewardTimestamp;
             uint256 joeReward = secondsElapsed * pool.joePerSec;
-            pool.accJoePerShare = pool.accJoePerShare + (joeReward * ACC_TOKEN_PRECISION) / lpSupply;
+            pool.accJoePerShare = pool.accJoePerShare + (joeReward * ACC_TOKEN_PRECISION) / apTokenSupply;
         }
 
         pool.lastRewardTimestamp = block.timestamp;
@@ -302,11 +327,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         PoolInfo memory pool = _poolInfo[pid];
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            _refreshPoolState(pool);
+            uint256 apTokenSupply = apTokenBalances[address(pool.apToken)];
+
+            _refreshPoolState(pool, apTokenSupply);
             _poolInfo[pid] = pool;
 
-            uint256 lpSupply = pool.apToken.balanceOf(address(this));
-            emit UpdatePool(pid, pool.lastRewardTimestamp, lpSupply, pool.accJoePerShare);
+            emit UpdatePool(pid, pool.lastRewardTimestamp, apTokenSupply, pool.accJoePerShare);
         }
 
         return pool;
