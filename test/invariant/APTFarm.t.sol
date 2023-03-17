@@ -9,12 +9,13 @@ contract APTFarmHandler is TestHelper {
     address[] internal _actors;
     address internal _currentActor;
 
+    uint256 public currentTimestamp;
     mapping(bytes32 => uint256) public calls;
     mapping(address => mapping(IERC20 => uint256)) public actorsTotalDeposits;
     uint256 public joeDistributed;
 
-    modifier useActor(uint256 actorIndexSeed) {
-        _currentActor = _actors[bound(actorIndexSeed, 0, _actors.length - 1)];
+    modifier useActor(uint256 randomnessSeed) {
+        _currentActor = _actors[bound(randomnessSeed, 0, _actors.length - 1)];
         vm.startPrank(_currentActor);
         _;
         vm.stopPrank();
@@ -22,6 +23,11 @@ contract APTFarmHandler is TestHelper {
 
     modifier countCall(bytes32 key) {
         calls[key]++;
+        _;
+    }
+
+    modifier useCurrentTimestamp() {
+        vm.warp(currentTimestamp);
         _;
     }
 
@@ -41,49 +47,50 @@ contract APTFarmHandler is TestHelper {
     uint256 depositCalls;
 
     // Trick to make more deposit/withdraw calls than the rest of the functions
-    function deposit1(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _deposit(pid, amount, actorIndexSeed);
+    function deposit1(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _deposit(pid, amount, randomnessSeed);
     }
 
-    function deposit2(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _deposit(pid, amount, actorIndexSeed);
+    function deposit2(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _deposit(pid, amount, randomnessSeed);
     }
 
-    function deposit3(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _deposit(pid, amount, actorIndexSeed);
+    function deposit3(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _deposit(pid, amount, randomnessSeed);
     }
 
-    function deposit4(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _deposit(pid, amount, actorIndexSeed);
+    function deposit4(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _deposit(pid, amount, randomnessSeed);
     }
 
-    function deposit5(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _deposit(pid, amount, actorIndexSeed);
+    function deposit5(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _deposit(pid, amount, randomnessSeed);
     }
 
-    function withdraw1(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _withdraw(pid, amount, actorIndexSeed);
+    function withdraw1(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _withdraw(pid, amount, randomnessSeed);
     }
 
-    function withdraw2(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _withdraw(pid, amount, actorIndexSeed);
+    function withdraw2(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _withdraw(pid, amount, randomnessSeed);
     }
 
-    function withdraw3(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _withdraw(pid, amount, actorIndexSeed);
+    function withdraw3(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _withdraw(pid, amount, randomnessSeed);
     }
 
-    function withdraw4(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _withdraw(pid, amount, actorIndexSeed);
+    function withdraw4(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _withdraw(pid, amount, randomnessSeed);
     }
 
-    function withdraw5(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
-        _withdraw(pid, amount, actorIndexSeed);
+    function withdraw5(uint256 pid, uint256 amount, uint256 randomnessSeed) public {
+        _withdraw(pid, amount, randomnessSeed);
     }
 
-    function _deposit(uint256 pid, uint256 amount, uint256 actorIndexSeed)
+    function _deposit(uint256 pid, uint256 amount, uint256 randomnessSeed)
         internal
-        useActor(actorIndexSeed)
+        useActor(randomnessSeed)
+        useCurrentTimestamp
         countCall("deposit")
     {
         pid = bound(pid, 0, 2);
@@ -99,43 +106,60 @@ contract APTFarmHandler is TestHelper {
         _aptFarm.deposit(pid, amount);
 
         actorsTotalDeposits[_currentActor][apToken] += amount;
+
+        _warpRandom(randomnessSeed);
     }
 
-    function _withdraw(uint256 pid, uint256 amount, uint256 actorIndexSeed)
+    function _withdraw(uint256 pid, uint256 amount, uint256 randomnessSeed)
         internal
-        useActor(actorIndexSeed)
+        useActor(randomnessSeed)
+        useCurrentTimestamp
         countCall("withdraw")
     {
         pid = bound(pid, 0, 2);
         amount = bound(amount, 0, _aptFarm.userInfo(pid, _currentActor).amount);
 
         _aptFarm.withdraw(pid, amount);
+
+        _warpRandom(randomnessSeed);
     }
 
-    function emergencyWithdraw(uint256 pid, uint256 actorIndexSeed)
+    /**
+     *
+     * @dev Skips a random amount of time. 1 chance out of 5 to be skipped.
+     */
+    function _warpRandom(uint256 randomnessSeed) internal {
+        if (randomnessSeed % 10 > 1) {
+            uint256 secondsToWarp = bound(randomnessSeed, 0, timePassedUpperBound);
+            currentTimestamp += secondsToWarp;
+
+            joeDistributed += secondsToWarp * _aptFarm.poolInfo(0).joePerSec;
+            joeDistributed += secondsToWarp * _aptFarm.poolInfo(1).joePerSec;
+            joeDistributed += secondsToWarp * _aptFarm.poolInfo(2).joePerSec;
+        }
+    }
+
+    function emergencyWithdraw(uint256 pid, uint256 randomnessSeed)
         public
-        useActor(actorIndexSeed)
+        useActor(randomnessSeed)
+        useCurrentTimestamp
         countCall("emergencyWithdraw")
     {
         pid = bound(pid, 0, 2);
 
         _aptFarm.emergencyWithdraw(pid);
+
+        _warpRandom(randomnessSeed);
     }
 
-    function set(uint256 pid, uint256 joePerSec) public countCall("set") {
+    function set(uint256 pid, uint256 joePerSec, uint256 randomnessSeed) public useCurrentTimestamp countCall("set") {
         pid = bound(pid, 0, 2);
         joePerSec = bound(joePerSec, 0, joePerSecUpperBound);
 
         vm.prank(_aptFarm.owner());
         _aptFarm.set(pid, joePerSec, IRewarder(address(0)), false);
-    }
 
-    function skipTime(uint32 secondsToWarp) public countCall("skipTime") {
-        vm.warp(8);
-
-        joeDistributed += secondsToWarp * _aptFarm.poolInfo(0).joePerSec;
-        joeDistributed += secondsToWarp * _aptFarm.poolInfo(1).joePerSec;
-        joeDistributed += secondsToWarp * _aptFarm.poolInfo(2).joePerSec;
+        _warpRandom(randomnessSeed);
     }
 
     function callSummary() external view {
@@ -145,7 +169,6 @@ contract APTFarmHandler is TestHelper {
         console.log("withdraw", calls["withdraw"]);
         console.log("emergencyWithdraw", calls["emergencyWithdraw"]);
         console.log("set", calls["set"]);
-        console.log("skipTime", calls["skipTime"]);
     }
 }
 
@@ -159,7 +182,7 @@ contract APTFarmInvariantTest is TestHelper {
         handler = new APTFarmHandler(aptFarm);
         targetContract(address(handler));
 
-        bytes4[] memory targetSelectors = new bytes4[](13);
+        bytes4[] memory targetSelectors = new bytes4[](12);
         targetSelectors[0] = APTFarmHandler.deposit1.selector;
         targetSelectors[1] = APTFarmHandler.deposit2.selector;
         targetSelectors[2] = APTFarmHandler.deposit3.selector;
@@ -171,8 +194,7 @@ contract APTFarmInvariantTest is TestHelper {
         targetSelectors[8] = APTFarmHandler.withdraw4.selector;
         targetSelectors[9] = APTFarmHandler.withdraw5.selector;
         targetSelectors[10] = APTFarmHandler.set.selector;
-        targetSelectors[11] = APTFarmHandler.skipTime.selector;
-        targetSelectors[12] = APTFarmHandler.emergencyWithdraw.selector;
+        targetSelectors[11] = APTFarmHandler.emergencyWithdraw.selector;
 
         FuzzSelector memory fuzzSelector = FuzzSelector(address(handler), targetSelectors);
         targetSelector(fuzzSelector);
