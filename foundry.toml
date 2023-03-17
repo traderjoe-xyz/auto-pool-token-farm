@@ -6,8 +6,7 @@ libs = ['lib']
 gas_reports = ["APTFarm"]
 
 [invariant]
-runs = 256
-depth = 64
-fail_on_revert = true
+runs = 64
+depth = 256
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

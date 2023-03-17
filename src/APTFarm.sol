@@ -17,7 +17,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
-    uint256 private constant ACC_TOKEN_PRECISION = 1e18;
+    uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
     /**
      * @dev Set of all APT tokens that have been added as pools

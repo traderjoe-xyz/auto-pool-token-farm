@@ -3,12 +3,13 @@ pragma solidity 0.8.10;
 
 import "../TestHelper.sol";
 
-contract APTFarmHandler is Test {
+contract APTFarmHandler is TestHelper {
     APTFarm _aptFarm;
 
     address[] internal _actors;
     address internal _currentActor;
 
+    mapping(bytes32 => uint256) public calls;
     mapping(address => mapping(IERC20 => uint256)) public actorsTotalDeposits;
     uint256 public joeDistributed;
 
@@ -17,6 +18,11 @@ contract APTFarmHandler is Test {
         vm.startPrank(_currentActor);
         _;
         vm.stopPrank();
+    }
+
+    modifier countCall(bytes32 key) {
+        calls[key]++;
+        _;
     }
 
     constructor(APTFarm aptFarm) {
@@ -32,9 +38,56 @@ contract APTFarmHandler is Test {
         return _actors;
     }
 
-    function deposit(uint256 pid, uint256 amount, uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+    uint256 depositCalls;
+
+    // Trick to make more deposit/withdraw calls than the rest of the functions
+    function deposit1(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _deposit(pid, amount, actorIndexSeed);
+    }
+
+    function deposit2(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _deposit(pid, amount, actorIndexSeed);
+    }
+
+    function deposit3(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _deposit(pid, amount, actorIndexSeed);
+    }
+
+    function deposit4(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _deposit(pid, amount, actorIndexSeed);
+    }
+
+    function deposit5(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _deposit(pid, amount, actorIndexSeed);
+    }
+
+    function withdraw1(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _withdraw(pid, amount, actorIndexSeed);
+    }
+
+    function withdraw2(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _withdraw(pid, amount, actorIndexSeed);
+    }
+
+    function withdraw3(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _withdraw(pid, amount, actorIndexSeed);
+    }
+
+    function withdraw4(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _withdraw(pid, amount, actorIndexSeed);
+    }
+
+    function withdraw5(uint256 pid, uint256 amount, uint256 actorIndexSeed) public {
+        _withdraw(pid, amount, actorIndexSeed);
+    }
+
+    function _deposit(uint256 pid, uint256 amount, uint256 actorIndexSeed)
+        internal
+        useActor(actorIndexSeed)
+        countCall("deposit")
+    {
         pid = bound(pid, 0, 2);
-        amount = bound(amount, 0, 1e32);
+        amount = bound(amount, 0, apSupplyUpperBound);
 
         IERC20 apToken = _aptFarm.poolInfo(pid).apToken;
 
@@ -48,33 +101,51 @@ contract APTFarmHandler is Test {
         actorsTotalDeposits[_currentActor][apToken] += amount;
     }
 
-    function withdraw(uint256 pid, uint256 amount, uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+    function _withdraw(uint256 pid, uint256 amount, uint256 actorIndexSeed)
+        internal
+        useActor(actorIndexSeed)
+        countCall("withdraw")
+    {
         pid = bound(pid, 0, 2);
         amount = bound(amount, 0, _aptFarm.userInfo(pid, _currentActor).amount);
 
         _aptFarm.withdraw(pid, amount);
     }
 
-    function emergencyWithdraw(uint256 pid, uint256 actorIndexSeed) public useActor(actorIndexSeed) {
+    function emergencyWithdraw(uint256 pid, uint256 actorIndexSeed)
+        public
+        useActor(actorIndexSeed)
+        countCall("emergencyWithdraw")
+    {
         pid = bound(pid, 0, 2);
 
         _aptFarm.emergencyWithdraw(pid);
     }
 
-    function set(uint256 pid, uint256 joePerSec) public {
+    function set(uint256 pid, uint256 joePerSec) public countCall("set") {
         pid = bound(pid, 0, 2);
-        joePerSec = bound(joePerSec, 0, 1e24);
+        joePerSec = bound(joePerSec, 0, joePerSecUpperBound);
 
         vm.prank(_aptFarm.owner());
         _aptFarm.set(pid, joePerSec, IRewarder(address(0)), false);
     }
 
-    function skipTime(uint32 secondsToWarp) public {
-        skip(secondsToWarp);
+    function skipTime(uint32 secondsToWarp) public countCall("skipTime") {
+        vm.warp(8);
 
         joeDistributed += secondsToWarp * _aptFarm.poolInfo(0).joePerSec;
         joeDistributed += secondsToWarp * _aptFarm.poolInfo(1).joePerSec;
         joeDistributed += secondsToWarp * _aptFarm.poolInfo(2).joePerSec;
+    }
+
+    function callSummary() external view {
+        console.log("Call summary:");
+        console.log("-------------------");
+        console.log("deposit", calls["deposit"]);
+        console.log("withdraw", calls["withdraw"]);
+        console.log("emergencyWithdraw", calls["emergencyWithdraw"]);
+        console.log("set", calls["set"]);
+        console.log("skipTime", calls["skipTime"]);
     }
 }
 
@@ -88,11 +159,20 @@ contract APTFarmInvariantTest is TestHelper {
         handler = new APTFarmHandler(aptFarm);
         targetContract(address(handler));
 
-        bytes4[] memory targetSelectors = new bytes4[](4);
-        targetSelectors[0] = APTFarmHandler.deposit.selector;
-        targetSelectors[1] = APTFarmHandler.withdraw.selector;
-        targetSelectors[2] = APTFarmHandler.set.selector;
-        targetSelectors[3] = APTFarmHandler.skipTime.selector;
+        bytes4[] memory targetSelectors = new bytes4[](13);
+        targetSelectors[0] = APTFarmHandler.deposit1.selector;
+        targetSelectors[1] = APTFarmHandler.deposit2.selector;
+        targetSelectors[2] = APTFarmHandler.deposit3.selector;
+        targetSelectors[3] = APTFarmHandler.deposit4.selector;
+        targetSelectors[4] = APTFarmHandler.deposit5.selector;
+        targetSelectors[5] = APTFarmHandler.withdraw1.selector;
+        targetSelectors[6] = APTFarmHandler.withdraw2.selector;
+        targetSelectors[7] = APTFarmHandler.withdraw3.selector;
+        targetSelectors[8] = APTFarmHandler.withdraw4.selector;
+        targetSelectors[9] = APTFarmHandler.withdraw5.selector;
+        targetSelectors[10] = APTFarmHandler.set.selector;
+        targetSelectors[11] = APTFarmHandler.skipTime.selector;
+        targetSelectors[12] = APTFarmHandler.emergencyWithdraw.selector;
 
         FuzzSelector memory fuzzSelector = FuzzSelector(address(handler), targetSelectors);
         targetSelector(fuzzSelector);
@@ -124,5 +204,9 @@ contract APTFarmInvariantTest is TestHelper {
         uint256 joeBalance = joe.balanceOf(address(aptFarm));
 
         assertGe(joeBalance, initialFarmBalance - handler.joeDistributed());
+    }
+
+    function invariant_callSummary() public view {
+        handler.callSummary();
     }
 }

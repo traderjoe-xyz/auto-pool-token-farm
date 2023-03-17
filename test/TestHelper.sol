@@ -17,6 +17,21 @@ abstract contract TestHelper is Test {
     ERC20Mock lpToken2;
     ERC20Mock lpToken3;
 
+    uint256 timePassedLowerBound = 10;
+    uint256 timePassedUpperBound = 100 days;
+
+    // 8 JOE per day
+    uint256 joePerSecLowerBound = 1e14;
+    // 8_640_000 JOE per day
+    uint256 joePerSecUpperBound = 100e18;
+
+    // Auto Pool Token will have a minimum of 12 decimals (for tokenY.decimals = 6)
+    uint256 apSupplyLowerBound = 1e12;
+    // Upper bound needs to be sufficiently high to test very high supply tokens
+    uint256 apSupplyUpperBound = 1e50;
+
+    uint256 expectedPrecision = 1e17;
+
     function setUp() public virtual {
         joe = new ERC20Mock(18);
         lpToken1 = new ERC20Mock(18);

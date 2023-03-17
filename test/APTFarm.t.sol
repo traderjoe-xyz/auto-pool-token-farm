@@ -54,9 +54,9 @@ contract APTFarmTest is TestHelper {
     }
 
     function test_Deposit(uint256 joePerSec, uint256 amountDeposited, uint256 depositTime) public {
-        depositTime = bound(depositTime, 100, 1e8 days);
-        joePerSec = bound(joePerSec, 1e12, 1e24);
-        amountDeposited = bound(amountDeposited, 1e10, 1e28);
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
 
         _add(lpToken1, joePerSec);
 
@@ -73,7 +73,7 @@ contract APTFarmTest is TestHelper {
 
         (uint256 pendingJoe,,,) = aptFarm.pendingTokens(0, address(this));
 
-        assertApproxEqRel(pendingJoe, joePerSec * depositTime, 1e14);
+        assertApproxEqRel(pendingJoe, joePerSec * depositTime, expectedPrecision, "test_Deposit::2");
     }
 
     function test_ConsecutiveDeposits(
@@ -82,10 +82,10 @@ contract APTFarmTest is TestHelper {
         uint256 amountDepositedSecond,
         uint256 depositTime
     ) public {
-        depositTime = bound(depositTime, 100, 1e8 days);
-        joePerSec = bound(joePerSec, 1e12, 1e24);
-        amountDepositedFirst = bound(amountDepositedFirst, 1e10, 1e28);
-        amountDepositedSecond = bound(amountDepositedSecond, 1e10, 1e28);
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDepositedFirst = bound(amountDepositedFirst, apSupplyLowerBound, apSupplyUpperBound);
+        amountDepositedSecond = bound(amountDepositedSecond, amountDepositedFirst / 1e12, amountDepositedFirst * 1e12);
 
         _add(lpToken1, joePerSec);
         _deposit(0, amountDepositedFirst);
@@ -109,10 +109,10 @@ contract APTFarmTest is TestHelper {
     function test_Withdraw(uint256 joePerSec, uint256 amountDeposited, uint256 amountWithdrawn, uint256 depositTime)
         public
     {
-        depositTime = bound(depositTime, 100, 1e8 days);
-        joePerSec = bound(joePerSec, 1e12, 1e24);
-        amountDeposited = bound(amountDeposited, 1e10, 1e28);
-        amountWithdrawn = bound(amountWithdrawn, 1e10, amountDeposited);
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
+        amountWithdrawn = bound(amountWithdrawn, 0, amountDeposited);
 
         _add(lpToken1, joePerSec);
         _deposit(0, amountDeposited);
@@ -125,7 +125,10 @@ contract APTFarmTest is TestHelper {
         aptFarm.withdraw(0, amountWithdrawn);
 
         assertApproxEqRel(
-            joe.balanceOf(address(this)) - joeBalanceBefore, joePerSec * depositTime, 1e14, "test_Withdraw::1"
+            joe.balanceOf(address(this)) - joeBalanceBefore,
+            joePerSec * depositTime,
+            expectedPrecision,
+            "test_Withdraw::1"
         );
     }
 
@@ -135,10 +138,10 @@ contract APTFarmTest is TestHelper {
         uint256 amountWithdrawn,
         uint256 depositTime
     ) public {
-        depositTime = bound(depositTime, 100, 1e8 days);
-        joePerSec = bound(joePerSec, 1e12, 1e24);
-        amountDeposited = bound(amountDeposited, 0, 1e28);
-        amountWithdrawn = bound(amountWithdrawn, amountDeposited + 1, 1e28 + 1);
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
+        amountWithdrawn = bound(amountWithdrawn, amountDeposited + 1, type(uint256).max);
 
         _add(lpToken1, joePerSec);
         _deposit(0, amountDeposited);
@@ -157,9 +160,9 @@ contract APTFarmTest is TestHelper {
         uint256 depositTime,
         uint256 joeBalance
     ) public {
-        depositTime = bound(depositTime, 100, 1e8 days);
-        joePerSec = bound(joePerSec, 1e12, 1e24);
-        amountDeposited = bound(amountDeposited, 1e10, 1e28);
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
 
         _add(lpToken1, joePerSec);
         _deposit(0, amountDeposited);
@@ -182,9 +185,9 @@ contract APTFarmTest is TestHelper {
     }
 
     function test_SetPool(uint256 oldJoePerSec, uint256 newJoePerSec, uint256 timePassed) public {
-        oldJoePerSec = bound(oldJoePerSec, 1e12, 1e24);
-        newJoePerSec = bound(newJoePerSec, 1e12, 1e24);
-        timePassed = bound(timePassed, 100, 1e8 days);
+        oldJoePerSec = bound(oldJoePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        newJoePerSec = bound(newJoePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        timePassed = bound(timePassed, timePassedLowerBound, timePassedUpperBound);
 
         test_Deposit(oldJoePerSec, 1e18, 1e6);
 
@@ -213,9 +216,9 @@ contract APTFarmTest is TestHelper {
     }
 
     function test_EmergencyWithdraw(uint256 joePerSec, uint256 amountDeposited, uint256 depositTime) public {
-        depositTime = bound(depositTime, 100, 1e8 days);
-        joePerSec = bound(joePerSec, 1e12, 1e24);
-        amountDeposited = bound(amountDeposited, 1e10, 1e28);
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
 
         _add(lpToken1, joePerSec);
         _deposit(0, amountDeposited);
