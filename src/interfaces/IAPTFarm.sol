@@ -6,10 +6,11 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IE
 import {IRewarder} from "./IRewarder.sol";
 
 interface IAPTFarm {
+    error APTFarm__TokenAlreadyHasPool(address apToken);
     error APTFarm__InsufficientDeposit(uint256 deposit, uint256 amountWithdrawn);
     error APTFarm__InsufficientRewardBalance(uint256 contractBalance, uint256 amountNeeded);
 
-    event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
+    event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed apToken, IRewarder indexed rewarder);
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -30,14 +31,14 @@ interface IAPTFarm {
 
     /**
      * @notice Info of each APTFarm pool.
-     * `lpToken` Address of the LP token.
+     * `apToken` Address of the LP token.
      * `accJoePerShare` Accumulated JOE per share.
      * `lastRewardTimestamp` Last timestamp that JOE distribution occurs.
      * `joePerSec` JOE tokens distributed per second.
      * `rewarder` Address of the rewarder contract that handles the distribution of bonus tokens.
      */
     struct PoolInfo {
-        IERC20 lpToken;
+        IERC20 apToken;
         uint256 accJoePerShare;
         uint256 lastRewardTimestamp;
         uint256 joePerSec;
@@ -52,7 +53,7 @@ interface IAPTFarm {
 
     function userInfo(uint256 pid, address user) external view returns (UserInfo memory userInfo);
 
-    function add(uint256 joePerSec, IERC20 lpToken, IRewarder rewarder) external;
+    function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external;
 
     function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite) external;
 
@@ -65,10 +66,6 @@ interface IAPTFarm {
             string memory bonusTokenSymbol,
             uint256 pendingBonusToken
         );
-
-    function massUpdatePools(uint256[] calldata pids) external;
-
-    function updatePool(uint256 pid) external;
 
     function deposit(uint256 pid, uint256 amount) external;
 

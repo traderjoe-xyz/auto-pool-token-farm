@@ -34,20 +34,20 @@ abstract contract TestHelper is Test {
         deal(address(joe), address(aptFarm), 1e38);
     }
 
-    function _add(ERC20Mock lpToken, uint256 joePerSec) internal returns (uint256 pid) {
-        pid = _add(lpToken, joePerSec, IRewarder(address(0)));
+    function _add(ERC20Mock apToken, uint256 joePerSec) internal returns (uint256 pid) {
+        pid = _add(apToken, joePerSec, IRewarder(address(0)));
     }
 
-    function _add(ERC20Mock lpToken, uint256 joePerSec, IRewarder rewarder) internal returns (uint256 pid) {
+    function _add(ERC20Mock apToken, uint256 joePerSec, IRewarder rewarder) internal returns (uint256 pid) {
         pid = aptFarm.poolLength();
-        aptFarm.add(joePerSec, IERC20(lpToken), rewarder);
+        aptFarm.add(joePerSec, IERC20(apToken), rewarder);
     }
 
     function _deposit(uint256 pid, uint256 amount) internal {
-        ERC20Mock lpToken = ERC20Mock(address(aptFarm.poolInfo(pid).lpToken));
+        ERC20Mock apToken = ERC20Mock(address(aptFarm.poolInfo(pid).apToken));
 
-        deal(address(lpToken), address(this), amount);
-        lpToken.approve(address(aptFarm), amount);
+        deal(address(apToken), address(this), amount);
+        apToken.approve(address(aptFarm), amount);
         aptFarm.deposit(pid, amount);
     }
 }

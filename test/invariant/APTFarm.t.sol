@@ -36,16 +36,16 @@ contract APTFarmHandler is Test {
         pid = bound(pid, 0, 2);
         amount = bound(amount, 0, 1e32);
 
-        IERC20 lpToken = _aptFarm.poolInfo(pid).lpToken;
+        IERC20 apToken = _aptFarm.poolInfo(pid).apToken;
 
-        if (amount > lpToken.balanceOf(_currentActor)) {
-            ERC20Mock(address(lpToken)).mint(_currentActor, amount - lpToken.balanceOf(_currentActor));
+        if (amount > apToken.balanceOf(_currentActor)) {
+            ERC20Mock(address(apToken)).mint(_currentActor, amount - apToken.balanceOf(_currentActor));
         }
-        lpToken.approve(address(_aptFarm), amount);
+        apToken.approve(address(_aptFarm), amount);
 
         _aptFarm.deposit(pid, amount);
 
-        actorsTotalDeposits[_currentActor][lpToken] += amount;
+        actorsTotalDeposits[_currentActor][apToken] += amount;
     }
 
     function withdraw(uint256 pid, uint256 amount, uint256 actorIndexSeed) public useActor(actorIndexSeed) {

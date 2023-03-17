@@ -20,18 +20,18 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     uint256 private constant ACC_TOKEN_PRECISION = 1e18;
 
     /**
-     * @dev Set of all LP tokens that have been added as pools
+     * @dev Set of all APT tokens that have been added as pools
      *
      */
-    EnumerableSet.AddressSet private _lpTokens;
+    EnumerableSet.AddressSet private _apTokens;
 
     /**
-     * @dev Info of each MCJV3 pool.
+     * @dev Info of each APTFarm pool.
      */
     PoolInfo[] private _poolInfo;
 
     /**
-     * @dev Info of each user that stakes LP tokens.
+     * @dev Info of each user that stakes APT tokens.
      */
     mapping(uint256 => mapping(address => UserInfo)) private _userInfo;
 
@@ -74,34 +74,34 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @notice Add a new LP to the pool set. Can only be called by the owner.
+     * @notice Add a new APT to the pool set. Can only be called by the owner.
      * @param joePerSec Initial number of joe tokens per second streamed to the pool.
-     * @param lpToken Address of the LP ERC-20 token.
+     * @param apToken Address of the APT ERC-20 token.
      * @param rewarder Address of the rewarder delegate.
      */
-    function add(uint256 joePerSec, IERC20 lpToken, IRewarder rewarder) external override onlyOwner {
-        require(!_lpTokens.contains(address(lpToken)), "add: LP already added");
-        // Sanity check to ensure lpToken is an ERC20 token
-        lpToken.balanceOf(address(this));
-        // Sanity check if we add a rewarder
-        if (address(rewarder) != address(0)) {
-            rewarder.onJoeReward(address(0), 0);
+    function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
+        if (!_apTokens.add(address(apToken))) {
+            revert APTFarm__TokenAlreadyHasPool(address(apToken));
         }
-
-        uint256 lastRewardTimestamp = block.timestamp;
 
         _poolInfo.push(
             PoolInfo({
-                lpToken: lpToken,
-                lastRewardTimestamp: lastRewardTimestamp,
+                apToken: apToken,
+                lastRewardTimestamp: block.timestamp,
                 accJoePerShare: 0,
                 joePerSec: joePerSec,
                 rewarder: rewarder
             })
         );
 
-        _lpTokens.add(address(lpToken));
-        emit Add(_poolInfo.length - 1, joePerSec, lpToken, rewarder);
+        // Sanity check to ensure apToken is an ERC20 token
+        apToken.balanceOf(address(this));
+        // Sanity check if we add a rewarder
+        if (address(rewarder) != address(0)) {
+            rewarder.onJoeReward(address(0), 0);
+        }
+
+        emit Add(_poolInfo.length - 1, joePerSec, apToken, rewarder);
     }
 
     /**
@@ -112,14 +112,14 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param overwrite True if _rewarder should be `set`. Otherwise `_rewarder` is ignored.
      */
     function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite) external override onlyOwner {
-        _updatePool(pid);
-
-        PoolInfo storage pool = _poolInfo[pid];
+        PoolInfo memory pool = _updatePool(pid);
         pool.joePerSec = joePerSec;
 
+        _poolInfo[pid] = pool;
+
         if (overwrite) {
-            rewarder.onJoeReward(address(0), 0); // sanity check
             pool.rewarder = rewarder;
+            rewarder.onJoeReward(address(0), 0); // sanity check
         }
 
         emit Set(pid, joePerSec, overwrite ? rewarder : pool.rewarder, overwrite);
@@ -148,10 +148,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         PoolInfo memory pool = _poolInfo[pid];
         UserInfo storage userInfoCached = _userInfo[pid][user];
 
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-
-        if (block.timestamp > pool.lastRewardTimestamp && lpSupply != 0) {
-            pool = _getNewPoolState(pool);
+        if (block.timestamp > pool.lastRewardTimestamp) {
+            _refreshPoolState(pool);
         }
 
         pendingJoe = (userInfoCached.amount * pool.accJoePerShare) / ACC_TOKEN_PRECISION - userInfoCached.rewardDebt;
@@ -166,34 +164,13 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @notice Update reward variables for all pools. Be careful of gas spending!
-     * @param pids Pool IDs of all to be updated. Make sure to update all active pools.
-     */
-    function massUpdatePools(uint256[] calldata pids) external override {
-        uint256 len = pids.length;
-        for (uint256 i = 0; i < len; ++i) {
-            _updatePool(pids[i]);
-        }
-    }
-
-    /**
-     * @notice Update reward variables of the given pool.
+     * @notice Deposit APT tokens to the APTFarm for joe allocation.
      * @param pid The index of the pool. See `_poolInfo`.
-     */
-
-    function updatePool(uint256 pid) external override {
-        _updatePool(pid);
-    }
-
-    /**
-     * @notice Deposit LP tokens to the APTFarm for joe allocation.
-     * @param pid The index of the pool. See `_poolInfo`.
-     * @param amount LP token amount to deposit.
+     * @param amount APT token amount to deposit.
      */
     function deposit(uint256 pid, uint256 amount) external override nonReentrant {
-        _updatePool(pid);
+        PoolInfo memory pool = _updatePool(pid);
 
-        PoolInfo memory pool = _poolInfo[pid];
         UserInfo storage user = _userInfo[pid][msg.sender];
 
         uint256 userAmount = user.amount;
@@ -203,9 +180,9 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             _harvest(userAmount, userRewardDebt, pid, pool.accJoePerShare);
         }
 
-        uint256 balanceBefore = pool.lpToken.balanceOf(address(this));
-        pool.lpToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 receivedAmount = pool.lpToken.balanceOf(address(this)) - balanceBefore;
+        uint256 balanceBefore = pool.apToken.balanceOf(address(this));
+        pool.apToken.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 receivedAmount = pool.apToken.balanceOf(address(this)) - balanceBefore;
 
         // Effects
         userAmount = userAmount + receivedAmount;
@@ -224,14 +201,13 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @notice Withdraw LP tokens from the APTFarm.
+     * @notice Withdraw APT tokens from the APTFarm.
      * @param pid The index of the pool. See `_poolInfo`.
-     * @param amount LP token amount to withdraw.
+     * @param amount APT token amount to withdraw.
      */
     function withdraw(uint256 pid, uint256 amount) external override nonReentrant {
-        _updatePool(pid);
+        PoolInfo memory pool = _updatePool(pid);
 
-        PoolInfo memory pool = _poolInfo[pid];
         UserInfo storage user = _userInfo[pid][msg.sender];
 
         uint256 userAmount = user.amount;
@@ -258,7 +234,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             _rewarder.onJoeReward(msg.sender, userAmount);
         }
 
-        pool.lpToken.safeTransfer(msg.sender, amount);
+        pool.apToken.safeTransfer(msg.sender, amount);
 
         emit Withdraw(msg.sender, pid, amount);
     }
@@ -281,7 +257,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         }
 
         // Note: transfer can fail or succeed if `amount` is zero.
-        pool.lpToken.safeTransfer(msg.sender, amount);
+        pool.apToken.safeTransfer(msg.sender, amount);
         emit EmergencyWithdraw(msg.sender, pid, amount);
     }
 
@@ -301,13 +277,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @dev Updates the pool's state if time passed since last update.
+     * @dev Get the new pool state if time passed since last update.
      * @dev View function that needs to be commited if effectively updating the pool.
      * @param pool The pool to update.
-     * @return The updated pool.
      */
-    function _getNewPoolState(PoolInfo memory pool) internal view returns (PoolInfo memory) {
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+    function _refreshPoolState(PoolInfo memory pool) internal view {
+        uint256 lpSupply = pool.apToken.balanceOf(address(this));
 
         if (lpSupply > 0) {
             uint256 secondsElapsed = block.timestamp - pool.lastRewardTimestamp;
@@ -316,8 +291,6 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         }
 
         pool.lastRewardTimestamp = block.timestamp;
-
-        return pool;
     }
 
     /**
@@ -325,21 +298,23 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @dev Uses `_getNewPoolState` and commit the new pool state.
      * @param pid The index of the pool. See `_poolInfo`.
      */
-    function _updatePool(uint256 pid) internal {
+    function _updatePool(uint256 pid) internal returns (PoolInfo memory) {
         PoolInfo memory pool = _poolInfo[pid];
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            pool = _getNewPoolState(pool);
+            _refreshPoolState(pool);
             _poolInfo[pid] = pool;
 
-            uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+            uint256 lpSupply = pool.apToken.balanceOf(address(this));
             emit UpdatePool(pid, pool.lastRewardTimestamp, lpSupply, pool.accJoePerShare);
         }
+
+        return pool;
     }
 
     /**
      * @dev Harvests the pending JOE rewards for the given pool.
-     * @param userAmount The amount of LP tokens staked by the user.
+     * @param userAmount The amount of APT tokens staked by the user.
      * @param userRewardDebt The reward debt of the user.
      * @param pid The index of the pool. See `_poolInfo`.
      * @param poolAccJoePerShare The accumulated JOE per share of the pool.

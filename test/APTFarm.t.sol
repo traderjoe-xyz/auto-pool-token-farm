@@ -6,7 +6,7 @@ import "./TestHelper.sol";
 contract APTFarmTest is TestHelper {
     using stdStorage for StdStorage;
 
-    event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
+    event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed apToken, IRewarder indexed rewarder);
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -29,7 +29,7 @@ contract APTFarmTest is TestHelper {
         aptFarm.add(joePerSec1, IERC20(lpToken1), IRewarder(address(0)));
 
         assertEq(aptFarm.poolLength(), 1, "test_AddPool::1");
-        assertEq(address(aptFarm.poolInfo(0).lpToken), address(lpToken1), "test_AddPool::2");
+        assertEq(address(aptFarm.poolInfo(0).apToken), address(lpToken1), "test_AddPool::2");
         assertEq(aptFarm.poolInfo(0).joePerSec, joePerSec1, "test_AddPool::3");
         assertEq(aptFarm.poolInfo(0).lastRewardTimestamp, block.timestamp, "test_AddPool::4");
         assertEq(aptFarm.poolInfo(0).accJoePerShare, 0, "test_AddPool::5");
@@ -39,7 +39,7 @@ contract APTFarmTest is TestHelper {
         aptFarm.add(joePerSec2, IERC20(lpToken2), IRewarder(address(0)));
 
         assertEq(aptFarm.poolLength(), 2, "test_AddPool::6");
-        assertEq(address(aptFarm.poolInfo(1).lpToken), address(lpToken2), "test_AddPool::7");
+        assertEq(address(aptFarm.poolInfo(1).apToken), address(lpToken2), "test_AddPool::7");
         assertEq(aptFarm.poolInfo(1).joePerSec, joePerSec2, "test_AddPool::8");
         assertEq(aptFarm.poolInfo(1).lastRewardTimestamp, block.timestamp, "test_AddPool::9");
         assertEq(aptFarm.poolInfo(1).accJoePerShare, 0, "test_AddPool::10");
@@ -187,7 +187,6 @@ contract APTFarmTest is TestHelper {
         timePassed = bound(timePassed, 100, 1e8 days);
 
         test_Deposit(oldJoePerSec, 1e18, 1e6);
-        aptFarm.updatePool(0);
 
         (uint256 pendingJoeBefore,,,) = aptFarm.pendingTokens(0, address(this));
 
@@ -211,22 +210,6 @@ contract APTFarmTest is TestHelper {
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(alice);
         aptFarm.set(0, 1, IRewarder(address(0)), false);
-    }
-
-    function test_MassUpdatePool() public {
-        uint256[] memory pids = new uint256[](2);
-        pids[0] = _add(lpToken1, 1e18);
-        pids[1] = _add(lpToken2, 1e18);
-
-        _deposit(0, 1e18);
-        _deposit(1, 1e18);
-
-        skip(1e6);
-
-        aptFarm.massUpdatePools(pids);
-
-        assertEq(aptFarm.poolInfo(0).lastRewardTimestamp, block.timestamp, "test_MassUpdatePool::1");
-        assertEq(aptFarm.poolInfo(1).lastRewardTimestamp, block.timestamp, "test_MassUpdatePool::2");
     }
 
     function test_EmergencyWithdraw(uint256 joePerSec, uint256 amountDeposited, uint256 depositTime) public {
