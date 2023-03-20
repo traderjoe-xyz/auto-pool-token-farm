@@ -2,7 +2,6 @@
 pragma solidity 0.8.10;
 
 import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
-import {EnumerableSet} from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {IERC20, IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -14,16 +13,14 @@ import {IAPTFarm, IRewarder} from "./interfaces/IAPTFarm.sol";
  * These Joe tokens needs to be deposited on the contract first.
  */
 contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
-    using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
     /**
-     * @dev Set of all APT tokens that have been added as pools
-     *
+     * @notice Whether if the given token already has a pool or not.
      */
-    EnumerableSet.AddressSet private _apTokens;
+    mapping(IERC20 => bool) public override hasPool;
 
     /**
      * @dev Info of each APTFarm pool.
@@ -43,8 +40,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     /**
      * @notice Accounted balances of AP tokens in the farm.
      */
-
-    mapping(address => uint256) public override apTokenBalances;
+    mapping(IERC20 => uint256) public override apTokenBalances;
 
     /**
      * @param _joe The joe token contract address.
@@ -86,10 +82,11 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param rewarder Address of the rewarder delegate.
      */
     function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
-        if (!_apTokens.add(address(apToken))) {
+        if (hasPool[apToken]) {
             revert APTFarm__TokenAlreadyHasPool(address(apToken));
         }
 
+        hasPool[apToken] = true;
         _poolInfo.push(
             PoolInfo({
                 apToken: apToken,
@@ -121,12 +118,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         PoolInfo memory pool = _updatePool(pid);
         pool.joePerSec = joePerSec;
 
-        _poolInfo[pid] = pool;
-
         if (overwrite) {
             pool.rewarder = rewarder;
             rewarder.onJoeReward(address(0), 0); // sanity check
         }
+
+        _poolInfo[pid] = pool;
 
         emit Set(pid, joePerSec, overwrite ? rewarder : pool.rewarder, overwrite);
     }
@@ -155,7 +152,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         UserInfo storage userInfoCached = _userInfo[pid][user];
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 apTokenSupply = apTokenBalances[address(pool.apToken)];
+            uint256 apTokenSupply = apTokenBalances[pool.apToken];
             _refreshPoolState(pool, apTokenSupply);
         }
 
@@ -184,7 +181,6 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
             (user.amount, user.rewardDebt, user.unpaidRewards);
 
-        // Effects
         if (userAmount > 0 || userUnpaidRewards > 0) {
             user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
         }
@@ -198,9 +194,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         user.amount = userAmount;
         user.rewardDebt = userRewardDebt;
-        apTokenBalances[address(pool.apToken)] += receivedAmount;
+        apTokenBalances[pool.apToken] += receivedAmount;
 
-        // Interactions
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
             _rewarder.onJoeReward(msg.sender, userAmount);
@@ -226,7 +221,6 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             revert APTFarm__InsufficientDeposit(userAmount, amount);
         }
 
-        // Effects
         if (userAmount > 0 || userUnpaidRewards > 0) {
             user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
         }
@@ -236,9 +230,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         user.amount = userAmount;
         user.rewardDebt = userRewardDebt;
-        apTokenBalances[address(pool.apToken)] -= amount;
+        apTokenBalances[pool.apToken] -= amount;
 
-        // Interactions
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
             _rewarder.onJoeReward(msg.sender, userAmount);
@@ -260,7 +253,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        apTokenBalances[address(pool.apToken)] -= amount;
+        apTokenBalances[pool.apToken] -= amount;
 
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
@@ -273,28 +266,44 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @notice Withdraw all rewards from the APTFarm.
-     * @param to The address to send the rewards to.
-     * @param amount The amount of rewards to withdraw. Put 0 to withdraw all rewards.
+     * @notice Harvest rewards from the APTFarm for all the given pools.
+     * @param pids The indices of the pools to harvest from.
      */
-    function withdrawRewards(address to, uint256 amount) external override onlyOwner {
-        if (amount == 0) {
-            amount = joe.balanceOf(address(this));
+    function harvestRewards(uint256[] calldata pids) external override nonReentrant {
+        uint256 length = pids.length;
+        for (uint256 i = 0; i < length; i++) {
+            uint256 pid = pids[i];
+
+            PoolInfo memory pool = _updatePool(pid);
+            UserInfo storage user = _userInfo[pid][msg.sender];
+
+            (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
+                (user.amount, user.rewardDebt, user.unpaidRewards);
+
+            if (userAmount > 0 || userUnpaidRewards > 0) {
+                user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
+            }
+
+            IRewarder rewarder = pool.rewarder;
+            if (address(rewarder) != address(0)) {
+                rewarder.onJoeReward(msg.sender, userAmount);
+            }
+
+            userRewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+            user.rewardDebt = userRewardDebt;
         }
 
-        joe.safeTransfer(to, amount);
-
-        emit RewardsWithdrawn(to, amount);
+        emit BatchHarvest(msg.sender, pids);
     }
 
     /**
-     * @notice Allows owner to withdraw any AP tokens that have been sent to the APTFarm by mistake.
+     * @notice Allows owner to withdraw any tokens that have been sent to the APTFarm by mistake.
      * @param token The address of the AP token to skim.
      * @param to The address to send the AP token to.
      */
     function skim(IERC20 token, address to) external override onlyOwner {
         uint256 contractBalance = token.balanceOf(address(this));
-        uint256 totalDeposits = apTokenBalances[address(token)];
+        uint256 totalDeposits = apTokenBalances[token];
 
         if (contractBalance > totalDeposits) {
             uint256 amount = contractBalance - totalDeposits;
@@ -328,7 +337,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         PoolInfo memory pool = _poolInfo[pid];
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 apTokenSupply = apTokenBalances[address(pool.apToken)];
+            uint256 apTokenSupply = apTokenBalances[pool.apToken];
 
             _refreshPoolState(pool, apTokenSupply);
             _poolInfo[pid] = pool;
@@ -365,7 +374,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         joe.safeTransfer(msg.sender, pending);
 
-        emit Harvest(msg.sender, pid, pending);
+        emit Harvest(msg.sender, pid, pending, userUnpaidRewards);
 
         return userUnpaidRewards;
     }

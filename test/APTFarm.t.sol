@@ -12,8 +12,8 @@ contract APTFarmTest is TestHelper {
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event UpdatePool(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
     event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
+    event BatchHarvest(address indexed user, uint256[] pids);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event RewardsWithdrawn(address indexed to, uint256 amount);
     event Skim(address indexed token, address indexed to, uint256 amount);
 
     function test_Deploy() public {
@@ -34,16 +34,18 @@ contract APTFarmTest is TestHelper {
         assertEq(aptFarm.poolInfo(0).joePerSec, joePerSec1, "test_AddPool::3");
         assertEq(aptFarm.poolInfo(0).lastRewardTimestamp, block.timestamp, "test_AddPool::4");
         assertEq(aptFarm.poolInfo(0).accJoePerShare, 0, "test_AddPool::5");
+        assertTrue(aptFarm.hasPool(lpToken1), "test_AddPool::6");
 
         vm.expectEmit();
         emit Add(1, joePerSec2, IERC20(lpToken2), IRewarder(address(0)));
         aptFarm.add(joePerSec2, IERC20(lpToken2), IRewarder(address(0)));
 
-        assertEq(aptFarm.poolLength(), 2, "test_AddPool::6");
-        assertEq(address(aptFarm.poolInfo(1).apToken), address(lpToken2), "test_AddPool::7");
-        assertEq(aptFarm.poolInfo(1).joePerSec, joePerSec2, "test_AddPool::8");
-        assertEq(aptFarm.poolInfo(1).lastRewardTimestamp, block.timestamp, "test_AddPool::9");
-        assertEq(aptFarm.poolInfo(1).accJoePerShare, 0, "test_AddPool::10");
+        assertEq(aptFarm.poolLength(), 2, "test_AddPool::7");
+        assertEq(address(aptFarm.poolInfo(1).apToken), address(lpToken2), "test_AddPool::8");
+        assertEq(aptFarm.poolInfo(1).joePerSec, joePerSec2, "test_AddPool::9");
+        assertEq(aptFarm.poolInfo(1).lastRewardTimestamp, block.timestamp, "test_AddPool::10");
+        assertEq(aptFarm.poolInfo(1).accJoePerShare, 0, "test_AddPool::11");
+        assertTrue(aptFarm.hasPool(lpToken2), "test_AddPool::12");
     }
 
     function test_Revert_AddPoolWhenNotOwner(address alice) public {
@@ -51,6 +53,13 @@ contract APTFarmTest is TestHelper {
 
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(alice);
+        aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
+    }
+
+    function test_Revert_AddAlreadyExistingPool() public {
+        aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
+
+        vm.expectRevert(abi.encodeWithSelector(IAPTFarm.APTFarm__TokenAlreadyHasPool.selector, lpToken1));
         aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
     }
 
@@ -69,7 +78,7 @@ contract APTFarmTest is TestHelper {
         aptFarm.deposit(0, amountDeposited);
 
         assertEq(lpToken1.balanceOf(address(aptFarm)), amountDeposited, "test_Deposit::1");
-        assertEq(aptFarm.apTokenBalances(address(lpToken1)), amountDeposited, "test_Deposit::2");
+        assertEq(aptFarm.apTokenBalances(lpToken1), amountDeposited, "test_Deposit::2");
 
         skip(depositTime);
 
@@ -108,7 +117,7 @@ contract APTFarmTest is TestHelper {
         );
 
         assertEq(
-            aptFarm.apTokenBalances(address(lpToken1)),
+            aptFarm.apTokenBalances(lpToken1),
             amountDepositedFirst + amountDepositedSecond,
             "test_ConsecutiveDeposits::3"
         );
@@ -139,7 +148,7 @@ contract APTFarmTest is TestHelper {
             "test_Withdraw::1"
         );
 
-        assertEq(aptFarm.apTokenBalances(address(lpToken1)), amountDeposited - amountWithdrawn, "test_Withdraw::2");
+        assertEq(aptFarm.apTokenBalances(lpToken1), amountDeposited - amountWithdrawn, "test_Withdraw::2");
     }
 
     function test_Revert_WithdrawMoreThanDeposited(
@@ -259,38 +268,7 @@ contract APTFarmTest is TestHelper {
         assertEq(lpToken1.balanceOf(address(this)), lpTokenBalanceBefore + amountDeposited, "test_EmergencyWithdraw::1");
         assertEq(aptFarm.userInfo(0, address(this)).amount, 0, "test_EmergencyWithdraw::2");
         assertEq(aptFarm.userInfo(0, address(this)).rewardDebt, 0, "test_EmergencyWithdraw::3");
-        assertEq(aptFarm.apTokenBalances(address(lpToken1)), 0, "test_EmergencyWithdraw::4");
-    }
-
-    function test_WithdrawRewards(uint256 amount) public {
-        uint256 rewardsOnContracts = joe.balanceOf(address(aptFarm));
-
-        amount = bound(amount, 0, rewardsOnContracts);
-
-        uint256 joeBalanceBefore = joe.balanceOf(address(this));
-
-        if (amount == 0) {
-            vm.expectEmit();
-            emit RewardsWithdrawn(address(this), rewardsOnContracts);
-        } else {
-            vm.expectEmit();
-            emit RewardsWithdrawn(address(this), amount);
-        }
-        aptFarm.withdrawRewards(address(this), amount);
-
-        if (amount == 0) {
-            assertEq(joe.balanceOf(address(this)) - joeBalanceBefore, rewardsOnContracts, "test_WithdrawRewards::1");
-        } else {
-            assertEq(joe.balanceOf(address(this)) - joeBalanceBefore, amount, "test_WithdrawRewards::2");
-        }
-    }
-
-    function test_Revert_WithdrawRewardsWhenNotOwner(address alice) public {
-        vm.assume(alice != address(this));
-
-        vm.expectRevert("Ownable: caller is not the owner");
-        vm.prank(alice);
-        aptFarm.withdrawRewards(address(this), 0);
+        assertEq(aptFarm.apTokenBalances(lpToken1), 0, "test_EmergencyWithdraw::4");
     }
 
     function test_Skim(uint256 amount) public {
@@ -310,14 +288,52 @@ contract APTFarmTest is TestHelper {
         aptFarm.skim(lpToken1, address(this));
 
         assertEq(lpToken1.balanceOf(address(this)), lpToken1BalanceBefore + amount, "test_Skim::1");
-        assertEq(aptFarm.apTokenBalances(address(lpToken1)), 2e18, "test_Skim::2");
+        assertEq(aptFarm.apTokenBalances(lpToken1), 2e18, "test_Skim::2");
     }
 
-    function test_Revert_Skim(address alice) public {
+    function test_Revert_SkimWhenNotOwner(address alice) public {
         vm.assume(alice != address(this));
 
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(alice);
         aptFarm.skim(lpToken1, address(this));
+    }
+
+    function test_HarvestRewards(
+        uint256 joePerSec1,
+        uint256 joePerSec2,
+        uint256 amountDeposited1,
+        uint256 amountDeposited2,
+        uint256 depositTime
+    ) public {
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        joePerSec1 = bound(joePerSec1, joePerSecLowerBound, joePerSecUpperBound);
+        joePerSec2 = bound(joePerSec2, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited1 = bound(amountDeposited1, apSupplyLowerBound, apSupplyUpperBound);
+        amountDeposited2 = bound(amountDeposited2, apSupplyLowerBound, apSupplyUpperBound);
+
+        _add(lpToken1, joePerSec1);
+        _add(lpToken2, joePerSec2);
+        _deposit(0, amountDeposited1);
+        _deposit(1, amountDeposited2);
+
+        skip(depositTime);
+
+        (uint256 pendingJoe1,,,) = aptFarm.pendingTokens(0, address(this));
+        (uint256 pendingJoe2,,,) = aptFarm.pendingTokens(1, address(this));
+
+        uint256 userJoeBalanceBefore = joe.balanceOf(address(this));
+
+        uint256[] memory pids = new uint256[](2);
+        pids[0] = 0;
+        pids[1] = 1;
+
+        vm.expectEmit();
+        emit BatchHarvest(address(this), pids);
+        aptFarm.harvestRewards(pids);
+
+        assertEq(
+            joe.balanceOf(address(this)) - userJoeBalanceBefore, pendingJoe1 + pendingJoe2, "test_HarvestRewards::1"
+        );
     }
 }

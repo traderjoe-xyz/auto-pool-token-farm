@@ -14,9 +14,9 @@ interface IAPTFarm {
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event UpdatePool(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
-    event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
+    event Harvest(address indexed user, uint256 indexed pid, uint256 amount, uint256 unpaidAmount);
+    event BatchHarvest(address indexed user, uint256[] pids);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event RewardsWithdrawn(address indexed to, uint256 amount);
     event Skim(address indexed token, address indexed to, uint256 amount);
 
     /**
@@ -49,7 +49,9 @@ interface IAPTFarm {
 
     function joe() external view returns (IERC20 joe);
 
-    function apTokenBalances(address apToken) external view returns (uint256 apTokenBalance);
+    function hasPool(IERC20 apToken) external view returns (bool hasPool);
+
+    function apTokenBalances(IERC20 apToken) external view returns (uint256 apTokenBalance);
 
     function poolLength() external view returns (uint256 poolLength);
 
@@ -75,9 +77,9 @@ interface IAPTFarm {
 
     function withdraw(uint256 pid, uint256 amount) external;
 
-    function emergencyWithdraw(uint256 pid) external;
+    function harvestRewards(uint256[] calldata pids) external;
 
-    function withdrawRewards(address to, uint256 amount) external;
+    function emergencyWithdraw(uint256 pid) external;
 
     function skim(IERC20 token, address to) external;
 }
