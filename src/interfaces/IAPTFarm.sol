@@ -8,7 +8,6 @@ import {IRewarder} from "./IRewarder.sol";
 interface IAPTFarm {
     error APTFarm__TokenAlreadyHasPool(address apToken);
     error APTFarm__InsufficientDeposit(uint256 deposit, uint256 amountWithdrawn);
-    error APTFarm__InsufficientRewardBalance(uint256 contractBalance, uint256 amountNeeded);
 
     event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed apToken, IRewarder indexed rewarder);
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
@@ -24,10 +23,12 @@ interface IAPTFarm {
      * @notice Info of each APTFarm user.
      * `amount` LP token amount the user has provided.
      * `rewardDebt` The amount of JOE entitled to the user.
+     * `unpaidRewards` The amount of JOE that could not be transferred to the user.
      */
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
+        uint256 unpaidRewards;
     }
 
     /**

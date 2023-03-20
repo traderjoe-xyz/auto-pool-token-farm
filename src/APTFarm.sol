@@ -159,7 +159,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             _refreshPoolState(pool, apTokenSupply);
         }
 
-        pendingJoe = (userInfoCached.amount * pool.accJoePerShare) / ACC_TOKEN_PRECISION - userInfoCached.rewardDebt;
+        pendingJoe = (userInfoCached.amount * pool.accJoePerShare) / ACC_TOKEN_PRECISION - userInfoCached.rewardDebt
+            + userInfoCached.unpaidRewards;
 
         // If it's a double reward farm, we return info about the bonus token
         IRewarder rewarder = pool.rewarder;
@@ -180,18 +181,18 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         UserInfo storage user = _userInfo[pid][msg.sender];
 
-        uint256 userAmount = user.amount;
-        uint256 userRewardDebt = user.rewardDebt;
+        (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
+            (user.amount, user.rewardDebt, user.unpaidRewards);
 
-        if (userAmount > 0) {
-            _harvest(userAmount, userRewardDebt, pid, pool.accJoePerShare);
+        // Effects
+        if (userAmount > 0 || userUnpaidRewards > 0) {
+            user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
         }
 
         uint256 balanceBefore = pool.apToken.balanceOf(address(this));
         pool.apToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 receivedAmount = pool.apToken.balanceOf(address(this)) - balanceBefore;
 
-        // Effects
         userAmount = userAmount + receivedAmount;
         userRewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
 
@@ -218,21 +219,21 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         UserInfo storage user = _userInfo[pid][msg.sender];
 
-        uint256 userAmount = user.amount;
-        uint256 userRewardDebt = user.rewardDebt;
+        (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
+            (user.amount, user.rewardDebt, user.unpaidRewards);
 
         if (userAmount < amount) {
             revert APTFarm__InsufficientDeposit(userAmount, amount);
         }
 
-        if (userAmount > 0) {
-            _harvest(userAmount, userRewardDebt, pid, pool.accJoePerShare);
+        // Effects
+        if (userAmount > 0 || userUnpaidRewards > 0) {
+            user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
         }
 
         userAmount = userAmount - amount;
         userRewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
 
-        // Effects
         user.amount = userAmount;
         user.rewardDebt = userRewardDebt;
         apTokenBalances[address(pool.apToken)] -= amount;
@@ -345,15 +346,27 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param pid The index of the pool. See `_poolInfo`.
      * @param poolAccJoePerShare The accumulated JOE per share of the pool.
      */
-    function _harvest(uint256 userAmount, uint256 userRewardDebt, uint256 pid, uint256 poolAccJoePerShare) internal {
-        uint256 pending = (userAmount * poolAccJoePerShare) / ACC_TOKEN_PRECISION - userRewardDebt;
+    function _harvest(
+        uint256 userAmount,
+        uint256 userRewardDebt,
+        uint256 userUnpaidRewards,
+        uint256 pid,
+        uint256 poolAccJoePerShare
+    ) internal returns (uint256) {
+        uint256 pending = (userAmount * poolAccJoePerShare) / ACC_TOKEN_PRECISION - userRewardDebt + userUnpaidRewards;
 
         uint256 contractBalance = joe.balanceOf(address(this));
         if (contractBalance < pending) {
-            revert APTFarm__InsufficientRewardBalance(contractBalance, pending);
+            userUnpaidRewards = pending - contractBalance;
+            pending = contractBalance;
+        } else {
+            userUnpaidRewards = 0;
         }
+
         joe.safeTransfer(msg.sender, pending);
 
         emit Harvest(msg.sender, pid, pending);
+
+        return userUnpaidRewards;
     }
 }
