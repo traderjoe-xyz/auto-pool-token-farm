@@ -32,37 +32,43 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
     using SafeERC20 for IERC20;
 
     IERC20 public immutable override rewardToken;
-    IERC20 public immutable lpToken;
+    IERC20 public immutable apToken;
     bool public immutable isNative;
     IAPTFarm public immutable aptFarm;
     uint256 public tokenPerSec;
 
-    // Given the fraction, tokenReward * ACC_TOKEN_PRECISION / lpSupply, we consider
-    // several edge cases.
-    //
-    // Edge case n1: maximize the numerator, minimize the denominator.
-    // `lpSupply` = 1 WEI
-    // `tokenPerSec` = 1e(30)
-    // `timeElapsed` = 31 years, i.e. 1e9 seconds
-    // result = 1e9 * 1e30 * 1e36 / 1
-    //        = 1e75
-    // (No overflow as max uint256 is 1.15e77).
-    // PS: This will overflow when `timeElapsed` becomes greater than 1e11, i.e. in more than 3_000 years
-    // so it should be fine.
-    //
-    // Edge case n2: minimize the numerator, maximize the denominator.
-    // `lpSupply` = max(uint112) = 1e34
-    // `tokenPerSec` = 1 WEI
-    // `timeElapsed` = 1 second
-    // result = 1 * 1 * 1e36 / 1e34
-    //        = 1e2
-    // (Not rounded to zero, therefore ACC_TOKEN_PRECISION = 1e36 is safe)
+    /**
+     * Given the fraction, tokenReward * ACC_TOKEN_PRECISION / lpSupply, we consider
+     * several edge cases.
+     *
+     * Edge case n1: maximize the numerator, minimize the denominator.
+     * `lpSupply` = 1 WEI
+     * `tokenPerSec` = 1e(30)
+     * `timeElapsed` = 31 years, i.e. 1e9 seconds
+     * result = 1e9 * 1e30 * 1e36 / 1
+     *        = 1e75
+     * (No overflow as max uint256 is 1.15e77).
+     * PS: This will overflow when `timeElapsed` becomes greater than 1e11, i.e. in more than 3_000 years
+     * so it should be fine.
+     *
+     * Edge case n2: minimize the numerator, maximize the denominator.
+     * `lpSupply` = max(uint112) = 1e34
+     * `tokenPerSec` = 1 WEI
+     * `timeElapsed` = 1 second
+     * result = 1 * 1 * 1e36 / 1e34
+     *        = 1e2
+     * (Not rounded to zero, therefore ACC_TOKEN_PRECISION = 1e36 is safe)
+     */
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
-    /// @notice Info of the poolInfo.
+    /**
+     * @notice Info of the poolInfo.
+     */
     PoolInfo public poolInfo;
 
-    /// @notice Info of each user that stakes LP tokens.
+    /**
+     * @notice Info of each user that stakes LP tokens.
+     */
     mapping(address => UserInfo) public userInfo;
 
     modifier onlyAPTFarm() {
@@ -72,10 +78,10 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         _;
     }
 
-    constructor(IERC20 _rewardToken, IERC20 _lpToken, uint256 _tokenPerSec, IAPTFarm _MCJ, bool _isNative) {
+    constructor(IERC20 _rewardToken, IERC20 _apToken, uint256 _tokenPerSec, IAPTFarm _aptFarm, bool _isNative) {
         if (
-            !Address.isContract(address(_rewardToken)) || !Address.isContract(address(_lpToken))
-                || !Address.isContract(address(_MCJ))
+            !Address.isContract(address(_rewardToken)) || !Address.isContract(address(_apToken))
+                || !Address.isContract(address(_aptFarm))
         ) {
             revert SimpleRewarderPerSec__InvalidAddress();
         }
@@ -85,21 +91,25 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         }
 
         rewardToken = _rewardToken;
-        lpToken = _lpToken;
+        apToken = _apToken;
         tokenPerSec = _tokenPerSec;
-        aptFarm = _MCJ;
+        aptFarm = _aptFarm;
         isNative = _isNative;
         poolInfo = PoolInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
     }
 
-    /// @notice payable function needed to receive AVAX
+    /**
+     * @notice payable function needed to receive AVAX
+     */
     receive() external payable {}
 
-    /// @notice Function called by MasterChefJoe whenever staker claims JOE harvest. Allows staker to also receive a 2nd reward token.
-    /// @param _user Address of user
-    /// @param _lpAmount Number of LP tokens the user has
+    /**
+     * @notice Function called by MasterChefJoe whenever staker claims JOE harvest. Allows staker to also receive a 2nd reward token.
+     * @param _user Address of user
+     * @param _lpAmount Number of LP tokens the user has
+     */
     function onJoeReward(address _user, uint256 _lpAmount) external override onlyAPTFarm nonReentrant {
-        updatePool();
+        _updatePool();
 
         PoolInfo memory pool = poolInfo;
         UserInfo storage user = userInfo[_user];
@@ -133,15 +143,25 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         emit OnReward(_user, pending - user.unpaidRewards);
     }
 
-    /// @notice View function to see pending tokens
-    /// @param _user Address of user.
-    /// @return pending reward for a given user.
+    /**
+     * @notice Update reward variables of the given poolInfo.
+     * @return pool Returns the pool that was updated.
+     */
+    function updatePool() external returns (PoolInfo memory pool) {
+        pool = _updatePool();
+    }
+
+    /**
+     * @notice View function to see pending tokens
+     * @param _user Address of user.
+     * @return pending reward for a given user.
+     */
     function pendingTokens(address _user) external view override returns (uint256 pending) {
         PoolInfo memory pool = poolInfo;
         UserInfo storage user = userInfo[_user];
 
         uint256 accTokenPerShare = pool.accTokenPerShare;
-        uint256 lpSupply = lpToken.balanceOf(address(aptFarm));
+        uint256 lpSupply = apToken.balanceOf(address(aptFarm));
 
         if (block.timestamp > pool.lastRewardTimestamp && lpSupply != 0) {
             uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
@@ -152,15 +172,19 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         pending = (user.amount * accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
     }
 
-    /// @notice View function to see balance of reward token.
+    /**
+     * @notice View function to see balance of reward token.
+     */
     function balance() external view returns (uint256) {
         return _balance();
     }
 
-    /// @notice Sets the distribution reward rate. This will also update the poolInfo.
-    /// @param _tokenPerSec The number of tokens to distribute per second
+    /**
+     * @notice Sets the distribution reward rate. This will also update the poolInfo.
+     * @param _tokenPerSec The number of tokens to distribute per second
+     */
     function setRewardRate(uint256 _tokenPerSec) external onlyOwner {
-        updatePool();
+        _updatePool();
 
         uint256 oldRate = tokenPerSec;
         tokenPerSec = _tokenPerSec;
@@ -168,13 +192,24 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         emit RewardRateUpdated(oldRate, _tokenPerSec);
     }
 
-    /// @notice Update reward variables of the given poolInfo.
-    /// @return pool Returns the pool that was updated.
-    function updatePool() public returns (PoolInfo memory pool) {
+    /**
+     * @notice In case rewarder is stopped before emissions finished, this function allows
+     * withdrawal of remaining tokens.
+     * @param token Address of token to withdraw
+     */
+    function emergencyWithdraw(address token) public onlyOwner {
+        if (token == address(0)) {
+            _transferNative(msg.sender, address(this).balance);
+        } else {
+            IERC20(token).safeTransfer(address(msg.sender), IERC20(token).balanceOf(address(this)));
+        }
+    }
+
+    function _updatePool() internal returns (PoolInfo memory pool) {
         pool = poolInfo;
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 lpSupply = lpToken.balanceOf(address(aptFarm));
+            uint256 lpSupply = apToken.balanceOf(address(aptFarm));
 
             if (lpSupply > 0) {
                 uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
@@ -184,16 +219,6 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
 
             pool.lastRewardTimestamp = block.timestamp;
             poolInfo = pool;
-        }
-    }
-
-    /// @notice In case rewarder is stopped before emissions finished, this function allows
-    /// withdrawal of remaining tokens.
-    function emergencyWithdraw(address token) public onlyOwner {
-        if (token == address(0)) {
-            _transferNative(msg.sender, address(this).balance);
-        } else {
-            IERC20(token).safeTransfer(address(msg.sender), IERC20(token).balanceOf(address(this)));
         }
     }
 
