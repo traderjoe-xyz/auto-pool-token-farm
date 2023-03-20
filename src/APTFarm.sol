@@ -175,26 +175,24 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      */
     function deposit(uint256 pid, uint256 amount) external override nonReentrant {
         PoolInfo memory pool = _updatePool(pid);
-
         UserInfo storage user = _userInfo[pid][msg.sender];
 
-        (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
+        (uint256 userAmountBefore, uint256 userRewardDebt, uint256 userUnpaidRewards) =
             (user.amount, user.rewardDebt, user.unpaidRewards);
-
-        if (userAmount > 0 || userUnpaidRewards > 0) {
-            user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
-        }
 
         uint256 balanceBefore = pool.apToken.balanceOf(address(this));
         pool.apToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 receivedAmount = pool.apToken.balanceOf(address(this)) - balanceBefore;
 
-        userAmount = userAmount + receivedAmount;
-        userRewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+        uint256 userAmount = userAmountBefore + receivedAmount;
 
+        user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
         user.amount = userAmount;
-        user.rewardDebt = userRewardDebt;
         apTokenBalances[pool.apToken] += receivedAmount;
+
+        if (userAmountBefore > 0 || userUnpaidRewards > 0) {
+            user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
+        }
 
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
@@ -211,25 +209,23 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      */
     function withdraw(uint256 pid, uint256 amount) external override nonReentrant {
         PoolInfo memory pool = _updatePool(pid);
-
         UserInfo storage user = _userInfo[pid][msg.sender];
 
-        (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
+        (uint256 userAmountBefore, uint256 userRewardDebt, uint256 userUnpaidRewards) =
             (user.amount, user.rewardDebt, user.unpaidRewards);
 
-        if (userAmount < amount) {
-            revert APTFarm__InsufficientDeposit(userAmount, amount);
+        if (userAmountBefore < amount) {
+            revert APTFarm__InsufficientDeposit(userAmountBefore, amount);
         }
 
-        if (userAmount > 0 || userUnpaidRewards > 0) {
-            user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
-        }
+        uint256 userAmount = userAmountBefore - amount;
+        user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
 
-        userAmount = userAmount - amount;
-        userRewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+        if (userAmountBefore > 0 || userUnpaidRewards > 0) {
+            user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
+        }
 
         user.amount = userAmount;
-        user.rewardDebt = userRewardDebt;
         apTokenBalances[pool.apToken] -= amount;
 
         IRewarder _rewarder = pool.rewarder;
@@ -280,6 +276,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
                 (user.amount, user.rewardDebt, user.unpaidRewards);
 
+            user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+
             if (userAmount > 0 || userUnpaidRewards > 0) {
                 user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
             }
@@ -288,9 +286,6 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             if (address(rewarder) != address(0)) {
                 rewarder.onJoeReward(msg.sender, userAmount);
             }
-
-            userRewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
-            user.rewardDebt = userRewardDebt;
         }
 
         emit BatchHarvest(msg.sender, pids);
