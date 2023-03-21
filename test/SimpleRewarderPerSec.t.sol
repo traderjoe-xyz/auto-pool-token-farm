@@ -162,4 +162,15 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarderFactory.createRewarder(rewardToken, lpToken2, tokenPerSec, false);
         rewarderFactory.createRewarder(rewardToken, lpToken2, tokenPerSec, false);
     }
+
+    function test_SetRewardRate(uint256 oldTokenPerSec, uint256 newTokenPerSec) public {
+        oldTokenPerSec = bound(oldTokenPerSec, joePerSecLowerBound, joePerSecUpperBound);
+        newTokenPerSec = bound(newTokenPerSec, joePerSecLowerBound, joePerSecUpperBound);
+
+        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, oldTokenPerSec, false);
+
+        rewarder.setRewardRate(newTokenPerSec);
+
+        assertEq(rewarder.tokenPerSec(), newTokenPerSec, "test_SetRewardRate::1");
+    }
 }
