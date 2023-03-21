@@ -70,10 +70,13 @@ contract SimpleRewarderPerSecTest is TestHelper {
     function test_BalanceNative(uint256 amount) public {
         rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, true);
 
-        deal(address(rewarder), amount);
+        deal(address(this), amount);
+        (bool success,) = address(rewarder).call{value: amount}("");
 
-        assertEq(address(rewarder).balance, amount, "test_BalanceNative::1");
-        assertEq(rewarder.balance(), amount, "test_BalanceNative::2");
+        assertTrue(success, "test_BalanceNative::1");
+
+        assertEq(address(rewarder).balance, amount, "test_BalanceNative::2");
+        assertEq(rewarder.balance(), amount, "test_BalanceNative::3");
     }
 
     function test_OnReward(uint256 tokenPerSec, uint256 amountDeposited, uint256 depositTime) public {
