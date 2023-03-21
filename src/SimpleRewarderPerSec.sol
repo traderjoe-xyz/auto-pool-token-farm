@@ -19,12 +19,12 @@ import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
  * 100,000 XYZ and set the block reward accordingly so it's fully distributed after 30 days.
  *
  *
- * Issue with the previous version is that this fraction, `tokenReward*(ACC_TOKEN_PRECISION)/(lpSupply)`,
+ * Issue with the previous version is that this fraction, `tokenReward*(ACC_TOKEN_PRECISION)/(aptSupply)`,
  * can return 0 or be very inacurate with some tokens:
  *      uint256 timeElapsed = block.timestamp-(pool.lastRewardTimestamp);
  *      uint256 tokenReward = timeElapsed*(tokenPerSec);
  *      accTokenPerShare = accTokenPerShare+(
- *          tokenReward*(ACC_TOKEN_PRECISION)/(lpSupply)
+ *          tokenReward*(ACC_TOKEN_PRECISION)/(aptSupply)
  *      );
  *  The goal is to set ACC_TOKEN_PRECISION high enough to prevent this without causing overflow too.
  */
@@ -38,11 +38,11 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
     uint256 public tokenPerSec;
 
     /**
-     * Given the fraction, tokenReward * ACC_TOKEN_PRECISION / lpSupply, we consider
+     * Given the fraction, tokenReward * ACC_TOKEN_PRECISION / aptSupply, we consider
      * several edge cases.
      *
      * Edge case n1: maximize the numerator, minimize the denominator.
-     * `lpSupply` = 1 WEI
+     * `aptSupply` = 1 WEI
      * `tokenPerSec` = 1e(30)
      * `timeElapsed` = 31 years, i.e. 1e9 seconds
      * result = 1e9 * 1e30 * 1e36 / 1
@@ -52,7 +52,7 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
      * so it should be fine.
      *
      * Edge case n2: minimize the numerator, maximize the denominator.
-     * `lpSupply` = max(uint112) = 1e34
+     * `aptSupply` = max(uint112) = 1e34
      * `tokenPerSec` = 1 WEI
      * `timeElapsed` = 1 second
      * result = 1 * 1 * 1e36 / 1e34
@@ -106,9 +106,9 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
     /**
      * @notice Function called by MasterChefJoe whenever staker claims JOE harvest. Allows staker to also receive a 2nd reward token.
      * @param _user Address of user
-     * @param _lpAmount Number of LP tokens the user has
+     * @param _aptAmount Number of LP tokens the user has
      */
-    function onJoeReward(address _user, uint256 _lpAmount) external override onlyAPTFarm nonReentrant {
+    function onJoeReward(address _user, uint256 _aptAmount) external override onlyAPTFarm nonReentrant {
         _updatePool();
 
         PoolInfo memory pool = poolInfo;
@@ -138,7 +138,7 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
             }
         }
 
-        user.amount = _lpAmount;
+        user.amount = _aptAmount;
         user.rewardDebt = (user.amount * pool.accTokenPerShare) / ACC_TOKEN_PRECISION;
         emit OnReward(_user, pending - user.unpaidRewards);
     }
@@ -161,12 +161,12 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         UserInfo storage user = userInfo[_user];
 
         uint256 accTokenPerShare = pool.accTokenPerShare;
-        uint256 lpSupply = apToken.balanceOf(address(aptFarm));
+        uint256 aptSupply = apToken.balanceOf(address(aptFarm));
 
-        if (block.timestamp > pool.lastRewardTimestamp && lpSupply != 0) {
+        if (block.timestamp > pool.lastRewardTimestamp && aptSupply != 0) {
             uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
             uint256 tokenReward = timeElapsed * tokenPerSec;
-            accTokenPerShare = accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / lpSupply;
+            accTokenPerShare = accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / aptSupply;
         }
 
         pending = (user.amount * accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
@@ -209,12 +209,12 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         pool = poolInfo;
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 lpSupply = apToken.balanceOf(address(aptFarm));
+            uint256 aptSupply = apToken.balanceOf(address(aptFarm));
 
-            if (lpSupply > 0) {
+            if (aptSupply > 0) {
                 uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
                 uint256 tokenReward = timeElapsed * tokenPerSec;
-                pool.accTokenPerShare = pool.accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / lpSupply;
+                pool.accTokenPerShare = pool.accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / aptSupply;
             }
 
             pool.lastRewardTimestamp = block.timestamp;

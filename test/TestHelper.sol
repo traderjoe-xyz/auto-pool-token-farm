@@ -54,6 +54,7 @@ abstract contract TestHelper is Test {
         vm.label(address(rewarder), "rewarder");
 
         deal(address(joe), address(aptFarm), 1e38);
+        deal(address(rewardToken), address(rewarder), 1e38);
     }
 
     function _add(ERC20Mock apToken, uint256 joePerSec) internal returns (uint256 pid) {

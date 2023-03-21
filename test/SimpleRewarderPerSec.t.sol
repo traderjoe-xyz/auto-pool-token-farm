@@ -4,6 +4,9 @@ pragma solidity 0.8.10;
 import "./TestHelper.sol";
 
 contract SimpleRewarderPerSecTest is TestHelper {
+    event OnReward(address indexed user, uint256 amount);
+    event RewardRateUpdated(uint256 oldRate, uint256 newRate);
+
     using stdStorage for StdStorage;
 
     function test_Deploy(uint256 tokenPerSec) public {
@@ -16,6 +19,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
         assertEq(rewarder.tokenPerSec(), tokenPerSec, "test_Deploy::4");
         assertEq(address(rewarder.aptFarm()), address(aptFarm), "test_Deploy::5");
         assertFalse(rewarder.isNative(), "test_Deploy::6");
+        assertEq(rewarder.owner(), address(this), "test_Deploy::7");
     }
 
     function test_Revert_DeployWithTokenPerSecTooBig(uint256 tokenPerSec) public {
@@ -68,5 +72,79 @@ contract SimpleRewarderPerSecTest is TestHelper {
 
         assertEq(address(rewarder).balance, amount, "test_BalanceNative::1");
         assertEq(rewarder.balance(), amount, "test_BalanceNative::2");
+    }
+
+    function test_OnReward(uint256 tokenPerSec, uint256 amountDeposited, uint256 depositTime) public {
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        tokenPerSec = bound(tokenPerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
+
+        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1,tokenPerSec,aptFarm, false);
+        deal(address(rewardToken), address(rewarder), 1e50);
+        _add(lpToken1, 1e18, rewarder);
+        _deposit(0, amountDeposited);
+
+        (uint256 amount, uint256 rewardDebt, uint256 unpaidRewards) = rewarder.userInfo(address(this));
+        assertEq(amount, amountDeposited, "test_OnReward::1");
+        assertEq(rewardDebt, 0, "test_OnReward::2");
+        assertEq(unpaidRewards, 0, "test_OnReward::3");
+
+        skip(depositTime);
+
+        uint256 balanceBefore = rewardToken.balanceOf(address(this));
+
+        aptFarm.withdraw(0, amountDeposited);
+
+        uint256 balanceAfter = rewardToken.balanceOf(address(this));
+        uint256 rewards = tokenPerSec * depositTime;
+
+        (amount, rewardDebt, unpaidRewards) = rewarder.userInfo(address(this));
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnReward::4");
+        assertEq(amount, 0, "test_OnReward::5");
+        assertEq(unpaidRewards, 0, "test_OnReward::6");
+
+        aptFarm.withdraw(0, 0);
+
+        assertEq(rewardToken.balanceOf(address(this)), balanceAfter, "test_OnReward::7");
+
+        _deposit(0, amountDeposited);
+
+        skip(depositTime);
+
+        balanceBefore = rewardToken.balanceOf(address(this));
+        aptFarm.emergencyWithdraw(0);
+        balanceAfter = rewardToken.balanceOf(address(this));
+
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnReward::8");
+
+        _deposit(0, amountDeposited);
+
+        skip(depositTime);
+
+        (, address bonusTokenAddress, string memory bonusTokenSymbol, uint256 pendingBonusToken) =
+            aptFarm.pendingTokens(0, address(this));
+
+        assertApproxEqRel(pendingBonusToken, rewards, expectedPrecision, "test_OnReward::9");
+        assertEq(bonusTokenAddress, address(rewardToken), "test_OnReward::10");
+        assertEq(bonusTokenSymbol, "ERC20Mock", "test_OnReward::11");
+
+        uint256[] memory pids = new uint256[](1);
+        pids[0] = 0;
+
+        balanceBefore = rewardToken.balanceOf(address(this));
+        aptFarm.harvestRewards(pids);
+        balanceAfter = rewardToken.balanceOf(address(this));
+
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnReward::12");
+    }
+
+    function test_UpdateRewarder() public {
+        _add(lpToken1, 1e18);
+
+        assertEq(address(aptFarm.poolInfo(0).rewarder), address(0), "test_UpdateRewarder::1");
+
+        aptFarm.set(0, 2e18, rewarder, true);
+
+        assertEq(address(aptFarm.poolInfo(0).rewarder), address(rewarder), "test_UpdateRewarder::1");
     }
 }
