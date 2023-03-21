@@ -34,10 +34,10 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     using SafeERC20 for IERC20;
 
     IERC20 public override rewardToken;
-    IERC20 public apToken;
-    bool public isNative;
-    IAPTFarm public aptFarm;
-    uint256 public tokenPerSec;
+    IERC20 public override apToken;
+    bool public override isNative;
+    IAPTFarm public override aptFarm;
+    uint256 public override tokenPerSec;
 
     /**
      * Given the fraction, tokenReward * ACC_TOKEN_PRECISION / aptSupply, we consider

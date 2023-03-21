@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+
+import {IAPTFarm} from "./IAPTFarm.sol";
 import {IRewarder} from "./IRewarder.sol";
 
 interface ISimpleRewarderPerSec is IRewarder {
@@ -12,20 +15,41 @@ interface ISimpleRewarderPerSec is IRewarder {
     event OnReward(address indexed user, uint256 amount);
     event RewardRateUpdated(uint256 oldRate, uint256 newRate);
 
-    /// @notice Info of each APTFarm user.
-    /// `amount` LP token amount the user has provided.
-    /// `rewardDebt` The amount of YOUR_TOKEN entitled to the user.
+    /**
+     * @notice Info of each APTFarm user.
+     * `amount` LP token amount the user has provided.
+     * `rewardDebt` The amount of YOUR_TOKEN entitled to the user.
+     */
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
         uint256 unpaidRewards;
     }
 
-    /// @notice Info of each APTFarm poolInfo.
-    /// `accTokenPerShare` Amount of YOUR_TOKEN each LP token is worth.
-    /// `lastRewardTimestamp` The last timestamp YOUR_TOKEN was rewarded to the poolInfo.
+    /**
+     * @notice Info of each APTFarm poolInfo.
+     * `accTokenPerShare` Amount of YOUR_TOKEN each LP token is worth.
+     * `lastRewardTimestamp` The last timestamp YOUR_TOKEN was rewarded to the poolInfo.
+     */
     struct PoolInfo {
         uint256 accTokenPerShare;
         uint256 lastRewardTimestamp;
     }
+
+    function apToken() external view returns (IERC20);
+
+    function isNative() external view returns (bool);
+
+    function aptFarm() external view returns (IAPTFarm);
+
+    function tokenPerSec() external view returns (uint256);
+
+    function initialize(
+        IERC20 rewardToken,
+        IERC20 apToken,
+        uint256 tokenPerSec,
+        IAPTFarm aptFarm,
+        bool isNative,
+        address owner
+    ) external;
 }

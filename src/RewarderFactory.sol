@@ -4,12 +4,13 @@ pragma solidity 0.8.10;
 import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-import {SimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
+import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
+import {IRewarderFactory} from "./interfaces/IRewarderFactory.sol";
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
 
-contract RewarderFactory {
-    address public immutable simpleRewarderImplementation;
-    IAPTFarm public immutable aptFarm;
+contract RewarderFactory is IRewarderFactory {
+    address public immutable override simpleRewarderImplementation;
+    IAPTFarm public immutable override aptFarm;
 
     event RewarderCreated(
         address indexed rewarder, address indexed rewardToken, address indexed apToken, bool isNative
@@ -22,6 +23,7 @@ contract RewarderFactory {
 
     function createRewarder(IERC20 rewardToken, IERC20 apToken, uint256 tokenPerSec, bool isNative)
         external
+        override
         returns (SimpleRewarderPerSec rewarder)
     {
         address rewarderAddress = Clones.cloneDeterministic(
