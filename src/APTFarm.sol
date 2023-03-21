@@ -220,13 +220,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         uint256 userAmount = userAmountBefore - amount;
         user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+        user.amount = userAmount;
+        apTokenBalances[pool.apToken] -= amount;
 
         if (userAmountBefore > 0 || userUnpaidRewards > 0) {
             user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
         }
-
-        user.amount = userAmount;
-        apTokenBalances[pool.apToken] -= amount;
 
         IRewarder _rewarder = pool.rewarder;
         if (address(_rewarder) != address(0)) {
