@@ -7,11 +7,13 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import {APTFarm, IAPTFarm} from "src/APTFarm.sol";
 import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "src/SimpleRewarderPerSec.sol";
+import {RewarderFactory} from "src/RewarderFactory.sol";
 import {IRewarder} from "src/interfaces/IRewarder.sol";
 import {ERC20Mock} from "./mocks/ERC20.sol";
 
 abstract contract TestHelper is Test {
     APTFarm aptFarm;
+    RewarderFactory rewarderFactory;
     SimpleRewarderPerSec rewarder;
     ERC20Mock joe;
 
@@ -43,7 +45,8 @@ abstract contract TestHelper is Test {
         rewardToken = new ERC20Mock(18);
 
         aptFarm = new APTFarm(joe);
-        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1,1e18,aptFarm, false);
+        rewarderFactory = new RewarderFactory(aptFarm);
+        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, false);
 
         vm.label(address(joe), "joe");
         vm.label(address(lpToken1), "lpToken1");

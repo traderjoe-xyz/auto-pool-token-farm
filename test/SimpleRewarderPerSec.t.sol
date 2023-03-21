@@ -11,7 +11,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
 
     function test_Deploy(uint256 tokenPerSec) public {
         tokenPerSec = bound(tokenPerSec, 0, 1e30);
-        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1, tokenPerSec, aptFarm, false);
+        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, tokenPerSec, false);
 
         assertTrue(address(rewarder) != address(0), "test_Deploy::1");
         assertEq(address(rewarder.rewardToken()), address(rewardToken), "test_Deploy::2");
@@ -26,28 +26,30 @@ contract SimpleRewarderPerSecTest is TestHelper {
         vm.assume(tokenPerSec > 1e30);
 
         vm.expectRevert(ISimpleRewarderPerSec.SimpleRewarderPerSec__InvalidTokenPerSec.selector);
-        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1, tokenPerSec, aptFarm, false);
+        rewarderFactory.createRewarder(rewardToken, lpToken1, tokenPerSec, false);
     }
 
     function test_Revert_DeployWithInvalidRewardToken(address rewardToken) public {
         vm.assume(rewardToken.code.length == 0);
 
         vm.expectRevert(ISimpleRewarderPerSec.SimpleRewarderPerSec__InvalidAddress.selector);
-        rewarder = new SimpleRewarderPerSec(IERC20(rewardToken), lpToken1, 1e18, aptFarm, false);
+        rewarderFactory.createRewarder(IERC20(rewardToken), lpToken1, 1e18, false);
     }
 
     function test_Revert_DeployWithInvalidApToken(address apToken) public {
         vm.assume(apToken.code.length == 0);
 
         vm.expectRevert(ISimpleRewarderPerSec.SimpleRewarderPerSec__InvalidAddress.selector);
-        rewarder = new SimpleRewarderPerSec(rewardToken, IERC20(apToken), 1e18, aptFarm, false);
+        rewarderFactory.createRewarder(rewardToken, IERC20(apToken), 1e18, false);
     }
 
     function test_Revert_DeployWithInvalidAptFarm(address aptFarm) public {
         vm.assume(aptFarm.code.length == 0);
 
+        rewarderFactory = new RewarderFactory(IAPTFarm(aptFarm));
+
         vm.expectRevert(ISimpleRewarderPerSec.SimpleRewarderPerSec__InvalidAddress.selector);
-        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1, 1e18, IAPTFarm(aptFarm), false);
+        rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, false);
     }
 
     function test_Receive(uint256 amount) public {
@@ -66,7 +68,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
     }
 
     function test_BalanceNative(uint256 amount) public {
-        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1, 1e18, aptFarm, true);
+        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, true);
 
         deal(address(rewarder), amount);
 
@@ -79,7 +81,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
         tokenPerSec = bound(tokenPerSec, joePerSecLowerBound, joePerSecUpperBound);
         amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
 
-        rewarder = new SimpleRewarderPerSec(rewardToken, lpToken1,tokenPerSec,aptFarm, false);
+        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, tokenPerSec, false);
         deal(address(rewardToken), address(rewarder), 1e50);
         _add(lpToken1, 1e18, rewarder);
         _deposit(0, amountDeposited);

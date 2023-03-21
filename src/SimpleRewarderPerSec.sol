@@ -3,9 +3,11 @@ pragma solidity 0.8.10;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import {Ownable2StepUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from
+    "openzeppelin-contracts-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
+import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
 import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
@@ -28,13 +30,13 @@ import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
  *      );
  *  The goal is to set ACC_TOKEN_PRECISION high enough to prevent this without causing overflow too.
  */
-contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderPerSec {
+contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgradeable, ISimpleRewarderPerSec {
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable override rewardToken;
-    IERC20 public immutable apToken;
-    bool public immutable isNative;
-    IAPTFarm public immutable aptFarm;
+    IERC20 public override rewardToken;
+    IERC20 public apToken;
+    bool public isNative;
+    IAPTFarm public aptFarm;
     uint256 public tokenPerSec;
 
     /**
@@ -78,7 +80,18 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
         _;
     }
 
-    constructor(IERC20 _rewardToken, IERC20 _apToken, uint256 _tokenPerSec, IAPTFarm _aptFarm, bool _isNative) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
+        IERC20 _rewardToken,
+        IERC20 _apToken,
+        uint256 _tokenPerSec,
+        IAPTFarm _aptFarm,
+        bool _isNative,
+        address _owner
+    ) external initializer {
         if (
             !Address.isContract(address(_rewardToken)) || !Address.isContract(address(_apToken))
                 || !Address.isContract(address(_aptFarm))
@@ -90,12 +103,17 @@ contract SimpleRewarderPerSec is Ownable2Step, ReentrancyGuard, ISimpleRewarderP
             revert SimpleRewarderPerSec__InvalidTokenPerSec();
         }
 
+        __Ownable2Step_init();
+        __ReentrancyGuard_init();
+
         rewardToken = _rewardToken;
         apToken = _apToken;
         tokenPerSec = _tokenPerSec;
         aptFarm = _aptFarm;
         isNative = _isNative;
         poolInfo = PoolInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
+
+        _transferOwnership(_owner);
     }
 
     /**
