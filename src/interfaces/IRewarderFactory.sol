@@ -7,6 +7,12 @@ import {IAPTFarm} from "./IAPTFarm.sol";
 import {SimpleRewarderPerSec} from "../SimpleRewarderPerSec.sol";
 
 interface IRewarderFactory {
+    error RewarderFactory__InvalidAddress();
+
+    event RewarderCreated(
+        address indexed rewarder, address indexed rewardToken, address indexed apToken, bool isNative, address owner
+    );
+
     function simpleRewarderImplementation() external view returns (address);
 
     function aptFarm() external view returns (IAPTFarm);

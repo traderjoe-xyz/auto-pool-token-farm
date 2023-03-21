@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable2StepUpgradeable} from "openzeppelin-contracts-upgradeable/contracts/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
+
+import {Clone} from "joe-v2/libraries/Clone.sol";
 
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
 import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
@@ -30,13 +31,9 @@ import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
  *      );
  *  The goal is to set ACC_TOKEN_PRECISION high enough to prevent this without causing overflow too.
  */
-contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgradeable, ISimpleRewarderPerSec {
+contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgradeable, Clone, ISimpleRewarderPerSec {
     using SafeERC20 for IERC20;
 
-    IERC20 public override rewardToken;
-    IERC20 public override apToken;
-    bool public override isNative;
-    IAPTFarm public override aptFarm;
     uint256 public override tokenPerSec;
 
     /**
@@ -74,7 +71,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     mapping(address => UserInfo) public userInfo;
 
     modifier onlyAPTFarm() {
-        if (msg.sender != address(aptFarm)) {
+        if (msg.sender != address(_aptFarm())) {
             revert SimpleRewarderPerSec__OnlyAPTFarm();
         }
         _;
@@ -84,21 +81,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         _disableInitializers();
     }
 
-    function initialize(
-        IERC20 _rewardToken,
-        IERC20 _apToken,
-        uint256 _tokenPerSec,
-        IAPTFarm _aptFarm,
-        bool _isNative,
-        address _owner
-    ) external initializer {
-        if (
-            !Address.isContract(address(_rewardToken)) || !Address.isContract(address(_apToken))
-                || !Address.isContract(address(_aptFarm))
-        ) {
-            revert SimpleRewarderPerSec__InvalidAddress();
-        }
-
+    function initialize(uint256 _tokenPerSec, address _owner) external initializer {
         if (_tokenPerSec > 1e30) {
             revert SimpleRewarderPerSec__InvalidTokenPerSec();
         }
@@ -106,20 +89,44 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         __Ownable2Step_init();
         __ReentrancyGuard_init();
 
-        rewardToken = _rewardToken;
-        apToken = _apToken;
         tokenPerSec = _tokenPerSec;
-        aptFarm = _aptFarm;
-        isNative = _isNative;
         poolInfo = PoolInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
 
         _transferOwnership(_owner);
     }
 
     /**
+     * @notice Reward token.
+     */
+    function rewardToken() external pure override returns (IERC20) {
+        return _rewardToken();
+    }
+
+    /**
+     * @notice Corresponding APT token of this rewarder.
+     */
+    function apToken() external pure override returns (IERC20) {
+        return _apToken();
+    }
+
+    /**
+     * @notice APT farm contract.
+     */
+    function aptFarm() external pure override returns (IAPTFarm) {
+        return _aptFarm();
+    }
+
+    /**
+     * @notice Returns true if the reward token is the native currency.
+     */
+    function isNative() external pure override returns (bool) {
+        return _isNative();
+    }
+
+    /**
      * @notice payable function needed to receive AVAX
      */
-    receive() external payable {}
+    function depositNative() external payable {}
 
     /**
      * @notice Function called by MasterChefJoe whenever staker claims JOE harvest. Allows staker to also receive a 2nd reward token.
@@ -137,7 +144,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
             pending = (user.amount * pool.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
 
             uint256 rewardBalance = _balance();
-            if (isNative) {
+            if (_isNative()) {
                 if (pending > rewardBalance) {
                     _transferNative(_user, rewardBalance);
                     user.unpaidRewards = pending - rewardBalance;
@@ -147,10 +154,10 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
                 }
             } else {
                 if (pending > rewardBalance) {
-                    rewardToken.safeTransfer(_user, rewardBalance);
+                    _rewardToken().safeTransfer(_user, rewardBalance);
                     user.unpaidRewards = pending - rewardBalance;
                 } else {
-                    rewardToken.safeTransfer(_user, pending);
+                    _rewardToken().safeTransfer(_user, pending);
                     user.unpaidRewards = 0;
                 }
             }
@@ -179,7 +186,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         UserInfo storage user = userInfo[_user];
 
         uint256 accTokenPerShare = pool.accTokenPerShare;
-        uint256 aptSupply = apToken.balanceOf(address(aptFarm));
+        uint256 aptSupply = _apToken().balanceOf(address(_aptFarm()));
 
         if (block.timestamp > pool.lastRewardTimestamp && aptSupply != 0) {
             uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
@@ -227,7 +234,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         pool = poolInfo;
 
         if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 aptSupply = apToken.balanceOf(address(aptFarm));
+            uint256 aptSupply = _apToken().balanceOf(address(_aptFarm()));
 
             if (aptSupply > 0) {
                 uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
@@ -241,10 +248,10 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     }
 
     function _balance() internal view returns (uint256) {
-        if (isNative) {
+        if (_isNative()) {
             return address(this).balance;
         } else {
-            return rewardToken.balanceOf(address(this));
+            return _rewardToken().balanceOf(address(this));
         }
     }
 
@@ -253,5 +260,21 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         if (!success) {
             revert SimpleRewarderPerSec__TransferFailed();
         }
+    }
+
+    function _rewardToken() internal pure returns (IERC20) {
+        return IERC20(_getArgAddress(0));
+    }
+
+    function _apToken() internal pure returns (IERC20) {
+        return IERC20(_getArgAddress(20));
+    }
+
+    function _aptFarm() internal pure returns (IAPTFarm) {
+        return IAPTFarm(_getArgAddress(40));
+    }
+
+    function _isNative() internal pure returns (bool) {
+        return _getArgUint8(60) > 0;
     }
 }

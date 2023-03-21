@@ -7,7 +7,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import {APTFarm, IAPTFarm} from "src/APTFarm.sol";
 import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "src/SimpleRewarderPerSec.sol";
-import {RewarderFactory} from "src/RewarderFactory.sol";
+import {RewarderFactory, IRewarderFactory} from "src/RewarderFactory.sol";
 import {IRewarder} from "src/interfaces/IRewarder.sol";
 import {ERC20Mock} from "./mocks/ERC20.sol";
 

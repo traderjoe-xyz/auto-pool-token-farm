@@ -8,7 +8,6 @@ import {IRewarder} from "./IRewarder.sol";
 
 interface ISimpleRewarderPerSec is IRewarder {
     error SimpleRewarderPerSec__OnlyAPTFarm();
-    error SimpleRewarderPerSec__InvalidAddress();
     error SimpleRewarderPerSec__TransferFailed();
     error SimpleRewarderPerSec__InvalidTokenPerSec();
 
@@ -44,12 +43,5 @@ interface ISimpleRewarderPerSec is IRewarder {
 
     function tokenPerSec() external view returns (uint256);
 
-    function initialize(
-        IERC20 rewardToken,
-        IERC20 apToken,
-        uint256 tokenPerSec,
-        IAPTFarm aptFarm,
-        bool isNative,
-        address owner
-    ) external;
+    function initialize(uint256 tokenPerSec, address owner) external;
 }

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {ImmutableClone} from "joe-v2/libraries/ImmutableClone.sol";
 
 import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
 import {IRewarderFactory} from "./interfaces/IRewarderFactory.sol";
@@ -12,11 +13,13 @@ contract RewarderFactory is IRewarderFactory {
     address public immutable override simpleRewarderImplementation;
     IAPTFarm public immutable override aptFarm;
 
-    event RewarderCreated(
-        address indexed rewarder, address indexed rewardToken, address indexed apToken, bool isNative
-    );
+    uint256 private _nounce;
 
     constructor(IAPTFarm _aptFarm) {
+        if (!Address.isContract(address(_aptFarm))) {
+            revert RewarderFactory__InvalidAddress();
+        }
+
         simpleRewarderImplementation = address(new SimpleRewarderPerSec());
         aptFarm = _aptFarm;
     }
@@ -26,15 +29,20 @@ contract RewarderFactory is IRewarderFactory {
         override
         returns (SimpleRewarderPerSec rewarder)
     {
-        address rewarderAddress = Clones.cloneDeterministic(
+        if (!Address.isContract(address(rewardToken)) || !Address.isContract(address(apToken))) {
+            revert RewarderFactory__InvalidAddress();
+        }
+
+        address rewarderAddress = ImmutableClone.cloneDeterministic(
             simpleRewarderImplementation,
-            keccak256(abi.encodePacked(rewardToken, apToken, tokenPerSec, aptFarm, isNative))
+            abi.encodePacked(rewardToken, apToken, aptFarm, uint8(isNative ? 1 : 0)),
+            keccak256(abi.encode(_nounce++))
         );
 
         rewarder = SimpleRewarderPerSec(payable(rewarderAddress));
 
-        rewarder.initialize(rewardToken, apToken, tokenPerSec, aptFarm, isNative, msg.sender);
+        rewarder.initialize(tokenPerSec, msg.sender);
 
-        emit RewarderCreated(rewarderAddress, address(rewardToken), address(apToken), isNative);
+        emit RewarderCreated(rewarderAddress, address(rewardToken), address(apToken), isNative, msg.sender);
     }
 }
