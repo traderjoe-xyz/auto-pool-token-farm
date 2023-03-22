@@ -275,6 +275,6 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     }
 
     function _isNative() internal pure returns (bool) {
-        return _getArgUint8(60) > 0;
+        return _getArgBytes(60, 1)[0] > 0;
     }
 }

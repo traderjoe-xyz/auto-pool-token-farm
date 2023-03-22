@@ -35,7 +35,7 @@ contract RewarderFactory is IRewarderFactory {
 
         address rewarderAddress = ImmutableClone.cloneDeterministic(
             simpleRewarderImplementation,
-            abi.encodePacked(rewardToken, apToken, aptFarm, uint8(isNative ? 1 : 0)),
+            abi.encodePacked(rewardToken, apToken, aptFarm, isNative),
             keccak256(abi.encode(_nounce++))
         );
 
