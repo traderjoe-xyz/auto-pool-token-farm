@@ -14,3 +14,6 @@
 	path = lib/joe-v2
 	url = https://github.com/traderjoe-xyz/joe-v2
 	branch = acab592
+[submodule "lib/joe-v2-vault"]
+	path = lib/joe-v2-vault
+	url = https://github.com/traderjoe-xyz/joe-v2-vault
