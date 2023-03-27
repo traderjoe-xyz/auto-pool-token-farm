@@ -5,9 +5,18 @@ import "forge-std/Test.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
+import {BaseVault, IBaseVault, IERC20Upgradeable} from "joe-v2-vault/BaseVault.sol";
+import {SimpleVault} from "joe-v2-vault/SimpleVault.sol";
+import {OracleVault, IAggregatorV3} from "joe-v2-vault/OracleVault.sol";
+import {VaultFactory, IVaultFactory, ILBPair} from "joe-v2-vault/VaultFactory.sol";
+import {Strategy} from "joe-v2-vault/Strategy.sol";
+import {MockAggregator} from "joe-v2-vault/../test/mocks/MockAggregator.sol";
+import {JoeDexLens, ILBFactory, ILBLegacyFactory, IJoeFactory} from "joe-dex-lens/JoeDexLens.sol";
+
 import {APTFarm, IAPTFarm} from "src/APTFarm.sol";
 import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "src/SimpleRewarderPerSec.sol";
 import {RewarderFactory, IRewarderFactory} from "src/RewarderFactory.sol";
+import {APTFarmLens} from "src/APTFarmLens.sol";
 import {IRewarder} from "src/interfaces/IRewarder.sol";
 import {ERC20Mock} from "./mocks/ERC20.sol";
 
@@ -21,6 +30,12 @@ abstract contract TestHelper is Test {
     ERC20Mock lpToken2;
     ERC20Mock lpToken3;
     ERC20Mock rewardToken;
+
+    ERC20Mock tokenX1;
+    ERC20Mock tokenX2;
+    ERC20Mock tokenX3;
+    ERC20Mock tokenY1;
+    ERC20Mock tokenY2;
 
     uint256 timePassedLowerBound = 10;
     uint256 timePassedUpperBound = 100 days;
@@ -44,6 +59,12 @@ abstract contract TestHelper is Test {
         lpToken3 = new ERC20Mock(18);
         rewardToken = new ERC20Mock(18);
 
+        tokenX1 = new ERC20Mock(18);
+        tokenX2 = new ERC20Mock(18);
+        tokenX3 = new ERC20Mock(18);
+        tokenY1 = new ERC20Mock(18);
+        tokenY2 = new ERC20Mock(18);
+
         aptFarm = new APTFarm(joe);
         rewarderFactory = new RewarderFactory(aptFarm);
         rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, false);
@@ -53,6 +74,11 @@ abstract contract TestHelper is Test {
         vm.label(address(lpToken2), "lpToken2");
         vm.label(address(lpToken3), "lpToken3");
         vm.label(address(rewardToken), "rewardToken");
+        vm.label(address(tokenX1), "tokenX1");
+        vm.label(address(tokenX2), "tokenX2");
+        vm.label(address(tokenX3), "tokenX3");
+        vm.label(address(tokenY1), "tokenY1");
+        vm.label(address(tokenY2), "tokenY2");
         vm.label(address(aptFarm), "aptFarm");
         vm.label(address(rewarder), "rewarder");
 
