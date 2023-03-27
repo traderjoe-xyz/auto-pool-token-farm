@@ -34,7 +34,7 @@ contract APTFarmTest is TestHelper {
         assertEq(aptFarm.poolInfo(0).joePerSec, joePerSec1, "test_AddPool::3");
         assertEq(aptFarm.poolInfo(0).lastRewardTimestamp, block.timestamp, "test_AddPool::4");
         assertEq(aptFarm.poolInfo(0).accJoePerShare, 0, "test_AddPool::5");
-        assertTrue(aptFarm.hasPool(lpToken1), "test_AddPool::6");
+        assertTrue(aptFarm.hasPool(address(lpToken1)), "test_AddPool::6");
 
         vm.expectEmit();
         emit Add(1, joePerSec2, IERC20(lpToken2), IRewarder(address(0)));
@@ -45,7 +45,7 @@ contract APTFarmTest is TestHelper {
         assertEq(aptFarm.poolInfo(1).joePerSec, joePerSec2, "test_AddPool::9");
         assertEq(aptFarm.poolInfo(1).lastRewardTimestamp, block.timestamp, "test_AddPool::10");
         assertEq(aptFarm.poolInfo(1).accJoePerShare, 0, "test_AddPool::11");
-        assertTrue(aptFarm.hasPool(lpToken2), "test_AddPool::12");
+        assertTrue(aptFarm.hasPool(address(lpToken2)), "test_AddPool::12");
     }
 
     function test_Revert_AddPoolWhenNotOwner(address alice) public {

@@ -48,7 +48,6 @@ contract APTFarmLensTest is TestHelper {
 
         _add(ERC20Mock(oracleVault), 1e18);
         _add(ERC20Mock(simpleVault1), 1e18);
-        _add(ERC20Mock(simpleVault2), 1e18);
 
         strategy = vaultFactory.createDefaultStrategy(IBaseVault(simpleVault1));
 
@@ -61,16 +60,21 @@ contract APTFarmLensTest is TestHelper {
         vm.mockCall(
             address(joeDexLens), abi.encodeWithSelector(JoeDexLens.getTokenPriceUSD.selector, usdt), abi.encode(1e18)
         );
+        vm.mockCall(
+            address(joeDexLens),
+            abi.encodeWithSelector(JoeDexLens.getTokenPriceUSD.selector, joeAvalanche),
+            abi.encode(0.5e18)
+        );
     }
 
-    function test_GetAllPoolsData() public {
-        APTFarmLens.PoolVaultData[] memory poolsData = aptFarmLens.getAllPoolInfos();
+    function test_GetAllVaults() public {
+        APTFarmLens.VaultData[] memory poolsData = aptFarmLens.getAllVaults();
 
-        assertEq(poolsData.length, 3);
+        assertEq(poolsData.length, 3, "test_GetAllVaults::1");
 
-        assertEq(address(poolsData[0].vault), oracleVault);
-        assertEq(address(poolsData[1].vault), simpleVault1);
-        assertEq(address(poolsData[2].vault), simpleVault2);
+        assertEq(address(poolsData[0].vault), simpleVault1, "test_GetAllVaults::2");
+        assertEq(address(poolsData[1].vault), simpleVault2, "test_GetAllVaults::3");
+        assertEq(address(poolsData[2].vault), oracleVault, "test_GetAllVaults::4");
     }
 
     function test_GetAllPoolsWithUserData() public {
@@ -78,16 +82,12 @@ contract APTFarmLensTest is TestHelper {
         depositToVault(simpleVault1, address(this), 1e18, 20e6);
         _deposit(1, SimpleVault(payable(simpleVault1)).balanceOf(address(this)));
 
-        APTFarmLens.PoolVaultDataWithUserInfo memory farmInfosWithUserData =
-            aptFarmLens.getPoolWithUserInfo(1, address(this));
+        APTFarmLens.VaultDataWithUserInfo[] memory farmInfosWithUserData =
+            aptFarmLens.getAllVaultsWithUserInfo(address(this));
 
-        (uint256 amountX, uint256 amountY) = SimpleVault(payable(simpleVault1)).previewAmounts(
-            SimpleVault(payable(simpleVault1)).balanceOf(address(aptFarm))
+        assertApproxEqRel(
+            farmInfosWithUserData[2].farmDataWithUserInfo.userBalanceUSD, 40e18, 1e14, "test_GetAllPoolsWithUserData::1"
         );
-
-        console.log(amountX, amountY);
-
-        console.log(farmInfosWithUserData.userBalanceUSD);
     }
 
     function depositToVault(address newVault, address from, uint256 amountX, uint256 amountY) public {

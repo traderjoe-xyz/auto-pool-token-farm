@@ -2,6 +2,7 @@
 pragma solidity 0.8.10;
 
 import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
+import {EnumerableMap} from "openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {IERC20, IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -13,6 +14,7 @@ import {IAPTFarm, IRewarder} from "./interfaces/IAPTFarm.sol";
  * These Joe tokens needs to be deposited on the contract first.
  */
 contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
+    using EnumerableMap for EnumerableMap.AddressToUintMap;
     using SafeERC20 for IERC20;
 
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
@@ -20,7 +22,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     /**
      * @notice Whether if the given token already has a pool or not.
      */
-    mapping(IERC20 => bool) public override hasPool;
+    EnumerableMap.AddressToUintMap private _vaultsWithPools;
 
     /**
      * @dev Info of each APTFarm pool.
@@ -56,6 +58,14 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         pools = _poolInfo.length;
     }
 
+    function hasPool(address apToken) external view override returns (bool) {
+        return _vaultsWithPools.contains(apToken);
+    }
+
+    function vaultPoolId(address apToken) external view override returns (uint256) {
+        return _vaultsWithPools.get(apToken);
+    }
+
     /**
      * @notice Returns informations about the pool at the given index.
      * @param index The index of the pool.
@@ -82,11 +92,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param rewarder Address of the rewarder delegate.
      */
     function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
-        if (hasPool[apToken]) {
+        uint256 newPid = _poolInfo.length;
+
+        if (!_vaultsWithPools.set(address(apToken), newPid)) {
             revert APTFarm__TokenAlreadyHasPool(address(apToken));
         }
 
-        hasPool[apToken] = true;
         _poolInfo.push(
             PoolInfo({
                 apToken: apToken,
@@ -104,7 +115,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             rewarder.onJoeReward(address(0), 0);
         }
 
-        emit Add(_poolInfo.length - 1, joePerSec, apToken, rewarder);
+        emit Add(newPid, joePerSec, apToken, rewarder);
     }
 
     /**

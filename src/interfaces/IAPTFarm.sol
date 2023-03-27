@@ -49,7 +49,9 @@ interface IAPTFarm {
 
     function joe() external view returns (IERC20 joe);
 
-    function hasPool(IERC20 apToken) external view returns (bool hasPool);
+    function hasPool(address apToken) external view returns (bool hasPool);
+
+    function vaultPoolId(address apToken) external view returns (uint256 vaultPoolId);
 
     function apTokenBalances(IERC20 apToken) external view returns (uint256 apTokenBalance);
 
