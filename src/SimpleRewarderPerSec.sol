@@ -8,7 +8,7 @@ import {ReentrancyGuardUpgradeable} from
     "openzeppelin-contracts-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 
-import {Clone} from "joe-v2/libraries/Clone.sol";
+import {Clone} from "joe-v2-1/libraries/Clone.sol";
 
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
 import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";

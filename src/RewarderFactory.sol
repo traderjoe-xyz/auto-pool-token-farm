@@ -3,7 +3,7 @@ pragma solidity 0.8.10;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
-import {ImmutableClone} from "joe-v2/libraries/ImmutableClone.sol";
+import {ImmutableClone} from "joe-v2-1/libraries/ImmutableClone.sol";
 
 import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
 import {IRewarderFactory} from "./interfaces/IRewarderFactory.sol";
