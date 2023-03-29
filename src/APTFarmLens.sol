@@ -19,6 +19,7 @@ contract APTFarmLens {
 
     struct VaultData {
         IBaseVault vault;
+        IVaultFactory.VaultType vaultType;
         address tokenX;
         address tokenY;
         uint256 tokenXBalance;
@@ -62,7 +63,7 @@ contract APTFarmLens {
         vaultsData = _getAllVaults();
     }
 
-    function getAllPools() external view returns (FarmData[] memory farmsData) {
+    function getAllPools() external view returns (VaultData[] memory farmsData) {
         farmsData = _getAllPools();
     }
 
@@ -79,13 +80,18 @@ contract APTFarmLens {
         }
     }
 
-    // function getPoolWithUserInfo(uint256 poolId, address user)
-    //     external
-    //     view
-    //     returns (VaultDataWithUserInfo memory farmInfosWithUserData)
-    // {
-    //     farmInfosWithUserData = _getPoolWithUserInfo(poolId, user);
-    // }
+    function getAllPoolsWithUserInfo(address user)
+        external
+        view
+        returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo)
+    {
+        VaultData[] memory farmsData = _getAllPools();
+        farmsDataWithUserInfo = new VaultDataWithUserInfo[](farmsData.length);
+
+        for (uint256 i = 0; i < farmsData.length; i++) {
+            farmsDataWithUserInfo[i] = _getVaultUserInfo(farmsData[i], user);
+        }
+    }
 
     function _getAllVaults() internal view returns (VaultData[] memory vaultsData) {
         uint256 totalSimpleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Simple);
@@ -94,21 +100,34 @@ contract APTFarmLens {
         vaultsData = new VaultData[](totalSimpleVaults + totalOracleVaults);
 
         for (uint256 i = 0; i < totalSimpleVaults; i++) {
-            vaultsData[i] = _getVault(IVaultFactory.VaultType.Simple, i);
+            vaultsData[i] = _getVaultAt(IVaultFactory.VaultType.Simple, i);
         }
 
         for (uint256 i = 0; i < totalOracleVaults; i++) {
-            vaultsData[totalSimpleVaults + i] = _getVault(IVaultFactory.VaultType.Oracle, i);
+            vaultsData[totalSimpleVaults + i] = _getVaultAt(IVaultFactory.VaultType.Oracle, i);
         }
     }
 
-    function _getVault(IVaultFactory.VaultType vaultType, uint256 vaultId)
+    function _getVaultAt(IVaultFactory.VaultType vaultType, uint256 vaultId)
         internal
         view
         returns (VaultData memory vaultData)
     {
         IBaseVault vault = IBaseVault(vaultFactory.getVaultAt(vaultType, vaultId));
+        vaultData = _getVault(vault, vaultType);
+    }
 
+    function _getVault(IBaseVault vault) internal view returns (VaultData memory vaultData) {
+        (bool success,) = address(vault).staticcall(abi.encodeWithSelector(vault.getBalances.selector));
+
+        vaultData = _getVault(vault, success ? IVaultFactory.VaultType.Oracle : IVaultFactory.VaultType.Simple);
+    }
+
+    function _getVault(IBaseVault vault, IVaultFactory.VaultType vaultType)
+        internal
+        view
+        returns (VaultData memory vaultData)
+    {
         FarmData memory farmInfo;
         if (aptFarm.hasPool(address(vault))) {
             uint256 poolId = aptFarm.vaultPoolId(address(vault));
@@ -118,15 +137,18 @@ contract APTFarmLens {
         address tokenX = address(vault.getTokenX());
         address tokenY = address(vault.getTokenY());
 
+        (uint256 tokenXBalance, uint256 tokenYBalance) = vault.getBalances();
+
         vaultData = VaultData({
             vault: vault,
+            vaultType: vaultType,
             tokenX: tokenX,
             tokenY: tokenY,
-            tokenXBalance: IERC20Metadata(tokenX).balanceOf(address(vault)),
-            tokenYBalance: IERC20Metadata(tokenY).balanceOf(address(vault)),
+            tokenXBalance: tokenXBalance,
+            tokenYBalance: tokenYBalance,
             totalSupply: vault.totalSupply(),
             vaultBalanceUSD: _getVaultTokenUSDValue(vault, vault.totalSupply()),
-            hasFarm: false,
+            hasFarm: aptFarm.hasPool(address(vault)),
             farmData: farmInfo
         });
     }
@@ -153,34 +175,13 @@ contract APTFarmLens {
         });
     }
 
-    function _getFarmUserInfo(IBaseVault vault, FarmData memory farmData, address user)
-        internal
-        view
-        returns (FarmDataWithUserInfo memory farmDataWithUserInfo)
-    {
-        uint256 userBalance = aptFarm.userInfo(farmData.farmId, user).amount;
-        uint256 userBalanceUSD = _getVaultTokenUSDValue(vault, userBalance);
-
-        console.log("userBalance", userBalance);
-        console.log("userBalanceUSD", userBalanceUSD);
-
-        (uint256 pendingJoe,,, uint256 pendingBonusToken) = aptFarm.pendingTokens(farmData.farmId, user);
-
-        farmDataWithUserInfo = FarmDataWithUserInfo({
-            farmData: farmData,
-            userBalance: userBalance,
-            userBalanceUSD: userBalanceUSD,
-            pendingJoe: pendingJoe,
-            pendingBonusToken: pendingBonusToken
-        });
-    }
-
-    function _getAllPools() internal view returns (FarmData[] memory farmsData) {
+    function _getAllPools() internal view returns (VaultData[] memory farmsData) {
         uint256 totalPools = aptFarm.poolLength();
-        farmsData = new FarmData[](totalPools);
+        farmsData = new VaultData[](totalPools);
 
         for (uint256 i = 0; i < totalPools; i++) {
-            farmsData[i] = _getPool(i);
+            IBaseVault vault = IBaseVault(address(aptFarm.poolInfo(i).apToken));
+            farmsData[i] = _getVault(vault);
         }
     }
 
@@ -198,24 +199,24 @@ contract APTFarmLens {
         });
     }
 
-    // function _getPoolWithUserInfo(uint256 poolId, address user)
-    //     internal
-    //     view
-    //     returns (VaultDataWithUserInfo memory farmInfosWithUserData)
-    // {
-    //     VaultData memory farmInfos = _getPoolInfo(poolId);
-    //     uint256 userBalance = aptFarm.userInfo(poolId, user).amount;
+    function _getFarmUserInfo(IBaseVault vault, FarmData memory farmData, address user)
+        internal
+        view
+        returns (FarmDataWithUserInfo memory farmDataWithUserInfo)
+    {
+        uint256 userBalance = aptFarm.userInfo(farmData.farmId, user).amount;
+        uint256 userBalanceUSD = _getVaultTokenUSDValue(vault, userBalance);
 
-    //     (uint256 pendingJoe,,, uint256 pendingBonusToken) = aptFarm.pendingTokens(poolId, user);
+        (uint256 pendingJoe,,, uint256 pendingBonusToken) = aptFarm.pendingTokens(farmData.farmId, user);
 
-    //     farmInfosWithUserData = VaultDataWithUserInfo({
-    //         vaultData: farmInfos,
-    //         userBalance: userBalance,
-    //         userBalanceUSD: _getVaultTokenUSDValue(farmInfos.vault, userBalance),
-    //         pendingJoe: pendingJoe,
-    //         pendingBonusToken: pendingBonusToken
-    //     });
-    // }
+        farmDataWithUserInfo = FarmDataWithUserInfo({
+            farmData: farmData,
+            userBalance: userBalance,
+            userBalanceUSD: userBalanceUSD,
+            pendingJoe: pendingJoe,
+            pendingBonusToken: pendingBonusToken
+        });
+    }
 
     function _getVaultTokenUSDValue(IBaseVault vault, uint256 balance) internal view returns (uint256 tokenUSDValue) {
         (address tokenX, address tokenY) = (address(vault.getTokenX()), address(vault.getTokenY()));
