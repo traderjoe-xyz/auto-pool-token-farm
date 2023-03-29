@@ -8,8 +8,19 @@ import {
 } from "./interfaces/IAPTFarmLens.sol";
 
 contract APTFarmLens is IAPTFarmLens {
+    /**
+     * @notice The vault factory contract
+     */
     IVaultFactory public immutable override vaultFactory;
+
+    /**
+     * @notice The APT farm contract
+     */
     IAPTFarm public immutable override aptFarm;
+
+    /**
+     * @notice The Joe Dex Lens contract
+     */
     IJoeDexLens public immutable override dexLens;
 
     constructor(IVaultFactory _vaultFactory, IAPTFarm _aptFarm, IJoeDexLens _dexLens) {
@@ -18,14 +29,27 @@ contract APTFarmLens is IAPTFarmLens {
         dexLens = _dexLens;
     }
 
+    /**
+     * @notice Returns the vault data for every vault created by the vault factory
+     * @return vaultsData The vault data for every vault created by the vault factory
+     */
     function getAllVaults() external view override returns (VaultData[] memory vaultsData) {
         vaultsData = _getAllVaults();
     }
 
+    /**
+     * @notice Returns the vault data for every vault that has a farm
+     *  @return farmsData The vault data for every vault that has a farm
+     */
     function getAllPools() external view override returns (VaultData[] memory farmsData) {
         farmsData = _getAllPools();
     }
 
+    /**
+     * @notice Returns the vault for every vault created by the vault factory with the user's info
+     * @param user The user's address
+     * @return vaultsDataWithUserInfo The vault data with the user's info
+     */
     function getAllVaultsWithUserInfo(address user)
         external
         view
@@ -41,6 +65,11 @@ contract APTFarmLens is IAPTFarmLens {
         }
     }
 
+    /**
+     * @notice Returns the vault for every vault that has a farm with the user's info
+     * @param user The user's address
+     * @return farmsDataWithUserInfo The vault data with the user's info
+     */
     function getAllPoolsWithUserInfo(address user)
         external
         view
@@ -56,6 +85,10 @@ contract APTFarmLens is IAPTFarmLens {
         }
     }
 
+    /**
+     * @dev Gets all the vaults created by the vault factory
+     * @return vaultsData The vault data for every vault created by the vault factory
+     */
     function _getAllVaults() internal view returns (VaultData[] memory vaultsData) {
         uint256 totalSimpleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Simple);
         uint256 totalOracleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Oracle);
@@ -71,6 +104,12 @@ contract APTFarmLens is IAPTFarmLens {
         }
     }
 
+    /**
+     * @dev Gets all the vault of the specified type created at the specified index
+     * @param vaultType The vault type
+     * @param vaultId The vault id
+     * @return vaultData The vault data
+     */
     function _getVaultAt(IVaultFactory.VaultType vaultType, uint256 vaultId)
         internal
         view
@@ -80,12 +119,23 @@ contract APTFarmLens is IAPTFarmLens {
         vaultData = _getVault(vault, vaultType);
     }
 
+    /**
+     * @dev Gets the vault information
+     * @param vault The vault address
+     * @return vaultData The vault data
+     */
     function _getVault(IBaseVault vault) internal view returns (VaultData memory vaultData) {
         (bool success,) = address(vault).staticcall(abi.encodeWithSelector(vault.getBalances.selector)); // TODO add a way to get the vault type in the vault factory
 
         vaultData = _getVault(vault, success ? IVaultFactory.VaultType.Oracle : IVaultFactory.VaultType.Simple);
     }
 
+    /**
+     * @dev Gets the vault information, considering that we already know the vault type
+     * @param vault The vault address
+     * @param vaultType The vault type
+     * @return vaultData The vault data
+     */
     function _getVault(IBaseVault vault, IVaultFactory.VaultType vaultType)
         internal
         view
@@ -116,6 +166,12 @@ contract APTFarmLens is IAPTFarmLens {
         });
     }
 
+    /**
+     * @dev Appends the user's info to the vault data
+     * @param vaultData The vault data
+     * @param user The user's address
+     * @return vaultDataWithUserInfo The vault data with the user's info
+     */
     function _getVaultUserInfo(VaultData memory vaultData, address user)
         internal
         view
@@ -138,6 +194,10 @@ contract APTFarmLens is IAPTFarmLens {
         });
     }
 
+    /**
+     * @dev Gets the farm information for every vault that has a farm
+     * @return farmsData The farm data for every vault that has a farm
+     */
     function _getAllPools() internal view returns (VaultData[] memory farmsData) {
         uint256 totalPools = aptFarm.poolLength();
 
@@ -149,6 +209,11 @@ contract APTFarmLens is IAPTFarmLens {
         }
     }
 
+    /**
+     * @dev Gets the farm information for the specified pool
+     * @param poolId The pool id
+     * @return farmData The farm data
+     */
     function _getPool(uint256 poolId) internal view returns (FarmData memory farmData) {
         IAPTFarm.PoolInfo memory poolInfo = aptFarm.poolInfo(poolId);
 
@@ -163,6 +228,13 @@ contract APTFarmLens is IAPTFarmLens {
         });
     }
 
+    /**
+     * @dev Appends the user's info to the farm data
+     * @param vault The vault address
+     * @param farmData The farm data
+     * @param user The user's address
+     * @return farmDataWithUserInfo The farm data with the user's info
+     */
     function _getFarmUserInfo(IBaseVault vault, FarmData memory farmData, address user)
         internal
         view
@@ -182,9 +254,15 @@ contract APTFarmLens is IAPTFarmLens {
         });
     }
 
-    function _getVaultTokenUSDValue(IBaseVault vault, uint256 balance) internal view returns (uint256 tokenUSDValue) {
+    /**
+     * @dev Gets the vault token USD value
+     * @param vault The vault address
+     * @param amount The amount of vault tokens
+     * @return tokenUSDValue The vault token USD value
+     */
+    function _getVaultTokenUSDValue(IBaseVault vault, uint256 amount) internal view returns (uint256 tokenUSDValue) {
         (address tokenX, address tokenY) = (address(vault.getTokenX()), address(vault.getTokenY()));
-        (uint256 amountX, uint256 amountY) = vault.previewAmounts(balance);
+        (uint256 amountX, uint256 amountY) = vault.previewAmounts(amount);
 
         (uint256 tokenXPrice, uint256 tokenYPrice) =
             (dexLens.getTokenPriceUSD(tokenX), dexLens.getTokenPriceUSD(tokenY));
