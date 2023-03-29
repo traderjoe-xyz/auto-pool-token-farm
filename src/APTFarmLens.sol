@@ -30,25 +30,25 @@ contract APTFarmLens is IAPTFarmLens {
     }
 
     /**
-     * @notice Returns the vault data for every vault created by the vault factory
-     * @return vaultsData The vault data for every vault created by the vault factory
+     * @notice Returns data for every vault created by the vault factory
+     * @return vaultsData The vault data array for every vault created by the vault factory
      */
     function getAllVaults() external view override returns (VaultData[] memory vaultsData) {
         vaultsData = _getAllVaults();
     }
 
     /**
-     * @notice Returns the vault data for every vault that has a farm
-     *  @return farmsData The vault data for every vault that has a farm
+     * @notice Returns data for every vault that has a farm
+     * @return farmsData The vault data array for every vault that has a farm
      */
-    function getAllPools() external view override returns (VaultData[] memory farmsData) {
-        farmsData = _getAllPools();
+    function getAllFarms() external view override returns (VaultData[] memory farmsData) {
+        farmsData = _getAllFarms();
     }
 
     /**
-     * @notice Returns the vault for every vault created by the vault factory with the user's info
+     * @notice Returns data for every vault created by the vault factory with the user's info
      * @param user The user's address
-     * @return vaultsDataWithUserInfo The vault data with the user's info
+     * @return vaultsDataWithUserInfo The vault data array with the user's info
      */
     function getAllVaultsWithUserInfo(address user)
         external
@@ -66,17 +66,17 @@ contract APTFarmLens is IAPTFarmLens {
     }
 
     /**
-     * @notice Returns the vault for every vault that has a farm with the user's info
+     * @notice Returns data for every vault that has a farm, with the user's info
      * @param user The user's address
-     * @return farmsDataWithUserInfo The vault data with the user's info
+     * @return farmsDataWithUserInfo The vault data array with the user's info
      */
-    function getAllPoolsWithUserInfo(address user)
+    function getAllFarmsWithUserInfo(address user)
         external
         view
         override
         returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo)
     {
-        VaultData[] memory farmsData = _getAllPools();
+        VaultData[] memory farmsData = _getAllFarms();
 
         farmsDataWithUserInfo = new VaultDataWithUserInfo[](farmsData.length);
 
@@ -87,7 +87,7 @@ contract APTFarmLens is IAPTFarmLens {
 
     /**
      * @dev Gets all the vaults created by the vault factory
-     * @return vaultsData The vault data for every vault created by the vault factory
+     * @return vaultsData The vault data array
      */
     function _getAllVaults() internal view returns (VaultData[] memory vaultsData) {
         uint256 totalSimpleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Simple);
@@ -144,7 +144,7 @@ contract APTFarmLens is IAPTFarmLens {
         FarmData memory farmInfo;
         if (aptFarm.hasPool(address(vault))) {
             uint256 poolId = aptFarm.vaultPoolId(address(vault));
-            farmInfo = _getPool(poolId);
+            farmInfo = _getFarm(poolId);
         }
 
         address tokenX = address(vault.getTokenX());
@@ -195,10 +195,10 @@ contract APTFarmLens is IAPTFarmLens {
     }
 
     /**
-     * @dev Gets the farm information for every vault that has a farm
-     * @return farmsData The farm data for every vault that has a farm
+     * @dev Gets the farm data for every vault that has a farm
+     * @return farmsData The farm data array
      */
-    function _getAllPools() internal view returns (VaultData[] memory farmsData) {
+    function _getAllFarms() internal view returns (VaultData[] memory farmsData) {
         uint256 totalPools = aptFarm.poolLength();
 
         farmsData = new VaultData[](totalPools);
@@ -214,7 +214,7 @@ contract APTFarmLens is IAPTFarmLens {
      * @param poolId The pool id
      * @return farmData The farm data
      */
-    function _getPool(uint256 poolId) internal view returns (FarmData memory farmData) {
+    function _getFarm(uint256 poolId) internal view returns (FarmData memory farmData) {
         IAPTFarm.PoolInfo memory poolInfo = aptFarm.poolInfo(poolId);
 
         IBaseVault vault = IBaseVault(address(poolInfo.apToken));

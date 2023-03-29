@@ -77,103 +77,106 @@ contract APTFarmLensTest is TestHelper {
     }
 
     function test_GetAllVaults() public {
-        APTFarmLens.VaultData[] memory poolsData = aptFarmLens.getAllVaults();
+        APTFarmLens.VaultData[] memory vaultsData = aptFarmLens.getAllVaults();
 
-        assertEq(poolsData.length, 3, "test_GetAllVaults::1");
+        assertEq(vaultsData.length, 3, "test_GetAllVaults::1");
 
-        assertEq(address(poolsData[0].vault), simpleVault1, "test_GetAllVaults::2");
-        assertEq(address(poolsData[1].vault), simpleVault2, "test_GetAllVaults::3");
-        assertEq(address(poolsData[2].vault), oracleVault, "test_GetAllVaults::4");
+        assertEq(address(vaultsData[0].vault), simpleVault1, "test_GetAllVaults::2");
+        assertEq(address(vaultsData[1].vault), simpleVault2, "test_GetAllVaults::3");
+        assertEq(address(vaultsData[2].vault), oracleVault, "test_GetAllVaults::4");
 
         // simpleVault1
-        assertEq(poolsData[0].tokenX, wavax, "test_GetAllVaults::5");
-        assertEq(poolsData[0].tokenY, usdc, "test_GetAllVaults::6");
-        assertEq(poolsData[0].tokenXBalance, 1e18, "test_GetAllVaults::7");
-        assertEq(poolsData[0].tokenYBalance, 20e6, "test_GetAllVaults::8");
-        assertApproxEqRel(poolsData[0].vaultBalanceUSD, 38e6, 1e16, "test_GetAllVaults::9");
-        assertEq(uint8(poolsData[0].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::10");
-        assertTrue(poolsData[0].hasFarm, "test_GetAllVaults::11");
-        assertEq(poolsData[0].farmData.farmId, 1, " test_GetAllVaults::12 ");
-        assertEq(poolsData[0].farmData.joePerSec, joePerSec, " test_GetAllVaults::13 ");
-        assertEq(address(poolsData[0].farmData.rewarder), address(0), " test_GetAllVaults::14 ");
+        assertEq(vaultsData[0].tokenX, wavax, "test_GetAllVaults::5");
+        assertEq(vaultsData[0].tokenY, usdc, "test_GetAllVaults::6");
+        assertEq(vaultsData[0].tokenXBalance, 1e18, "test_GetAllVaults::7");
+        assertEq(vaultsData[0].tokenYBalance, 20e6, "test_GetAllVaults::8");
+        assertApproxEqRel(vaultsData[0].vaultBalanceUSD, 38e6, 1e16, "test_GetAllVaults::9");
+        assertEq(uint8(vaultsData[0].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::10");
+        assertTrue(vaultsData[0].hasFarm, "test_GetAllVaults::11");
+        assertEq(vaultsData[0].farmData.farmId, 1, " test_GetAllVaults::12 ");
+        assertEq(vaultsData[0].farmData.joePerSec, joePerSec, " test_GetAllVaults::13 ");
+        assertEq(address(vaultsData[0].farmData.rewarder), address(0), " test_GetAllVaults::14 ");
         assertApproxEqRel(
-            poolsData[0].farmData.aptBalance,
+            vaultsData[0].farmData.aptBalance,
             SimpleVault(payable(simpleVault1)).totalSupply(),
             1e16,
             " test_GetAllVaults::15 "
         );
-        assertApproxEqRel(poolsData[0].farmData.aptBalanceUSD, 38e6, 1e16, " test_GetAllVaults::16 ");
+        assertApproxEqRel(vaultsData[0].farmData.aptBalanceUSD, 38e6, 1e16, " test_GetAllVaults::16 ");
 
         // simpleVault2
-        assertEq(poolsData[1].tokenX, joeAvalanche, "test_GetAllVaults::17");
-        assertEq(poolsData[1].tokenY, wavax, "test_GetAllVaults::18");
-        assertEq(poolsData[1].tokenXBalance, 0, "test_GetAllVaults::19");
-        assertEq(poolsData[1].tokenYBalance, 0, "test_GetAllVaults::20");
-        assertApproxEqRel(poolsData[1].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::21");
-        assertEq(uint8(poolsData[1].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::22");
-        assertFalse(poolsData[1].hasFarm, "test_GetAllVaults::23");
-        assertEq(poolsData[1].farmData.farmId, 0, " test_GetAllVaults::24 ");
-        assertEq(poolsData[1].farmData.joePerSec, 0, " test_GetAllVaults::25 ");
-        assertEq(address(poolsData[1].farmData.rewarder), address(0), " test_GetAllVaults::26 ");
-        assertApproxEqRel(poolsData[1].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::27 ");
-        assertApproxEqRel(poolsData[1].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::28 ");
+        assertEq(vaultsData[1].tokenX, joeAvalanche, "test_GetAllVaults::17");
+        assertEq(vaultsData[1].tokenY, wavax, "test_GetAllVaults::18");
+        assertEq(vaultsData[1].tokenXBalance, 0, "test_GetAllVaults::19");
+        assertEq(vaultsData[1].tokenYBalance, 0, "test_GetAllVaults::20");
+        assertApproxEqRel(vaultsData[1].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::21");
+        assertEq(uint8(vaultsData[1].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::22");
+        assertFalse(vaultsData[1].hasFarm, "test_GetAllVaults::23");
+        assertEq(vaultsData[1].farmData.farmId, 0, " test_GetAllVaults::24 ");
+        assertEq(vaultsData[1].farmData.joePerSec, 0, " test_GetAllVaults::25 ");
+        assertEq(address(vaultsData[1].farmData.rewarder), address(0), " test_GetAllVaults::26 ");
+        assertApproxEqRel(vaultsData[1].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::27 ");
+        assertApproxEqRel(vaultsData[1].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::28 ");
 
         // oracleVault
-        assertEq(poolsData[2].tokenX, usdt, "test_GetAllVaults::29");
-        assertEq(poolsData[2].tokenY, usdc, "test_GetAllVaults::30");
-        assertEq(poolsData[2].tokenXBalance, 0, "test_GetAllVaults::31");
-        assertEq(poolsData[2].tokenYBalance, 0, "test_GetAllVaults::32");
-        assertApproxEqRel(poolsData[2].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::33");
-        assertEq(uint8(poolsData[2].vaultType), uint8(IVaultFactory.VaultType.Oracle), "test_GetAllVaults::34");
-        assertTrue(poolsData[2].hasFarm, "test_GetAllVaults::35");
-        assertEq(poolsData[2].farmData.farmId, 0, " test_GetAllVaults::36 ");
-        assertEq(poolsData[2].farmData.joePerSec, joePerSec, " test_GetAllVaults::37 ");
-        assertEq(address(poolsData[2].farmData.rewarder), address(0), " test_GetAllVaults::38 ");
-        assertApproxEqRel(poolsData[2].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::39 ");
-        assertApproxEqRel(poolsData[2].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::40 ");
+        assertEq(vaultsData[2].tokenX, usdt, "test_GetAllVaults::29");
+        assertEq(vaultsData[2].tokenY, usdc, "test_GetAllVaults::30");
+        assertEq(vaultsData[2].tokenXBalance, 0, "test_GetAllVaults::31");
+        assertEq(vaultsData[2].tokenYBalance, 0, "test_GetAllVaults::32");
+        assertApproxEqRel(vaultsData[2].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::33");
+        assertEq(uint8(vaultsData[2].vaultType), uint8(IVaultFactory.VaultType.Oracle), "test_GetAllVaults::34");
+        assertTrue(vaultsData[2].hasFarm, "test_GetAllVaults::35");
+        assertEq(vaultsData[2].farmData.farmId, 0, " test_GetAllVaults::36 ");
+        assertEq(vaultsData[2].farmData.joePerSec, joePerSec, " test_GetAllVaults::37 ");
+        assertEq(address(vaultsData[2].farmData.rewarder), address(0), " test_GetAllVaults::38 ");
+        assertApproxEqRel(vaultsData[2].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::39 ");
+        assertApproxEqRel(vaultsData[2].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::40 ");
     }
 
-    function test_GetAllPools() public {
-        APTFarmLens.VaultData[] memory farmInfos = aptFarmLens.getAllPools();
+    function test_GetAllFarms() public {
+        APTFarmLens.VaultData[] memory farmsInfo = aptFarmLens.getAllFarms();
 
-        assertEq(farmInfos.length, 2, "test_GetAllPools::1");
+        assertEq(farmsInfo.length, 2, "test_GetAllPools::1");
 
-        assertEq(address(farmInfos[0].vault), oracleVault, "test_GetAllPools::2");
-        assertEq(address(farmInfos[1].vault), simpleVault1, "test_GetAllPools::3");
+        assertEq(address(farmsInfo[0].vault), oracleVault, "test_GetAllPools::2");
+        assertEq(address(farmsInfo[1].vault), simpleVault1, "test_GetAllPools::3");
     }
 
-    function test_GetAllVaultsWithUserData() public {
-        APTFarmLens.VaultDataWithUserInfo[] memory farmInfosWithUserData =
+    function test_GetAllVaultsWithUserInfo() public {
+        APTFarmLens.VaultDataWithUserInfo[] memory vaultsDataWithUserInfo =
             aptFarmLens.getAllVaultsWithUserInfo(address(this));
 
-        assertEq(farmInfosWithUserData.length, 3, "test_GetAllVaultsWithUserData::1");
+        assertEq(vaultsDataWithUserInfo.length, 3, "test_GetAllVaultsWithUserInfo::1");
 
-        assertEq(address(farmInfosWithUserData[0].vaultData.vault), simpleVault1, "test_GetAllVaultsWithUserData::2");
-        assertEq(address(farmInfosWithUserData[1].vaultData.vault), simpleVault2, "test_GetAllVaultsWithUserData::3");
-        assertEq(address(farmInfosWithUserData[2].vaultData.vault), oracleVault, "test_GetAllVaultsWithUserData::4");
+        assertEq(address(vaultsDataWithUserInfo[0].vaultData.vault), simpleVault1, "test_GetAllVaultsWithUserInfo::2");
+        assertEq(address(vaultsDataWithUserInfo[1].vaultData.vault), simpleVault2, "test_GetAllVaultsWithUserInfo::3");
+        assertEq(address(vaultsDataWithUserInfo[2].vaultData.vault), oracleVault, "test_GetAllVaultsWithUserInfo::4");
 
         assertApproxEqRel(
-            farmInfosWithUserData[0].vaultData.farmData.aptBalanceUSD, 38e6, 1e16, "test_GetAllVaultsWithUserData::5"
+            vaultsDataWithUserInfo[0].vaultData.farmData.aptBalanceUSD, 38e6, 1e16, "test_GetAllVaultsWithUserInfo::5"
         );
         assertApproxEqRel(
-            farmInfosWithUserData[0].farmDataWithUserInfo.userBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserData::1"
+            vaultsDataWithUserInfo[0].farmDataWithUserInfo.userBalanceUSD,
+            38e6,
+            1e16,
+            "test_GetAllVaultsWithUserInfo::1"
         );
     }
 
-    function test_GetAllPoolsWithUserData() public {
-        APTFarmLens.VaultDataWithUserInfo[] memory farmInfosWithUserData =
-            aptFarmLens.getAllPoolsWithUserInfo(address(this));
+    function test_GetAllPoolsWithUserInfo() public {
+        APTFarmLens.VaultDataWithUserInfo[] memory farmsDataWithUserInfo =
+            aptFarmLens.getAllFarmsWithUserInfo(address(this));
 
-        assertEq(farmInfosWithUserData.length, 2, "test_GetAllPoolsWithUserData::1");
+        assertEq(farmsDataWithUserInfo.length, 2, "test_GetAllPoolsWithUserInfo::1");
 
-        assertEq(address(farmInfosWithUserData[0].vaultData.vault), oracleVault, "test_GetAllPoolsWithUserData::2");
-        assertEq(address(farmInfosWithUserData[1].vaultData.vault), simpleVault1, "test_GetAllPoolsWithUserData::3");
+        assertEq(address(farmsDataWithUserInfo[0].vaultData.vault), oracleVault, "test_GetAllPoolsWithUserInfo::2");
+        assertEq(address(farmsDataWithUserInfo[1].vaultData.vault), simpleVault1, "test_GetAllPoolsWithUserInfo::3");
 
         assertApproxEqRel(
-            farmInfosWithUserData[1].vaultData.farmData.aptBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserData::4"
+            farmsDataWithUserInfo[1].vaultData.farmData.aptBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserInfo::4"
         );
         assertApproxEqRel(
-            farmInfosWithUserData[1].farmDataWithUserInfo.userBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserData::5"
+            farmsDataWithUserInfo[1].farmDataWithUserInfo.userBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserInfo::5"
         );
     }
 

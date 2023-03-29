@@ -54,14 +54,14 @@ interface IAPTFarmLens {
 
     function getAllVaults() external view returns (VaultData[] memory vaultsData);
 
-    function getAllPools() external view returns (VaultData[] memory farmsData);
+    function getAllFarms() external view returns (VaultData[] memory farmsData);
 
     function getAllVaultsWithUserInfo(address user)
         external
         view
         returns (VaultDataWithUserInfo[] memory vaultsDataWithUserInfo);
 
-    function getAllPoolsWithUserInfo(address user)
+    function getAllFarmsWithUserInfo(address user)
         external
         view
         returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo);
