@@ -3,55 +3,14 @@ pragma solidity 0.8.10;
 
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {IBaseVault} from "joe-v2-vault/interfaces/IBaseVault.sol";
-import {IVaultFactory} from "joe-v2-vault/interfaces/IVaultFactory.sol";
-import {IJoeDexLens} from "joe-dex-lens/interfaces/IJoeDexLens.sol";
+import {
+    IAPTFarmLens, IVaultFactory, IBaseVault, IAPTFarm, IRewarder, IJoeDexLens
+} from "./interfaces/IAPTFarmLens.sol";
 
-import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
-import {IRewarder} from "./interfaces/IRewarder.sol";
-
-import "forge-std/console.sol";
-
-contract APTFarmLens {
-    IVaultFactory public immutable vaultFactory;
-    IAPTFarm public immutable aptFarm;
-    IJoeDexLens public immutable dexLens;
-
-    struct VaultData {
-        IBaseVault vault;
-        IVaultFactory.VaultType vaultType;
-        address tokenX;
-        address tokenY;
-        uint256 tokenXBalance;
-        uint256 tokenYBalance;
-        uint256 totalSupply;
-        uint256 vaultBalanceUSD;
-        bool hasFarm;
-        FarmData farmData;
-    }
-
-    struct FarmData {
-        uint256 farmId;
-        uint256 joePerSec;
-        IRewarder rewarder;
-        uint256 aptBalance;
-        uint256 aptBalanceUSD;
-    }
-
-    struct VaultDataWithUserInfo {
-        VaultData vaultData;
-        uint256 userBalance;
-        uint256 userBalanceUSD;
-        FarmDataWithUserInfo farmDataWithUserInfo;
-    }
-
-    struct FarmDataWithUserInfo {
-        FarmData farmData;
-        uint256 userBalance;
-        uint256 userBalanceUSD;
-        uint256 pendingJoe;
-        uint256 pendingBonusToken;
-    }
+contract APTFarmLens is IAPTFarmLens {
+    IVaultFactory public immutable override vaultFactory;
+    IAPTFarm public immutable override aptFarm;
+    IJoeDexLens public immutable override dexLens;
 
     constructor(IVaultFactory _vaultFactory, IAPTFarm _aptFarm, IJoeDexLens _dexLens) {
         vaultFactory = _vaultFactory;
@@ -59,20 +18,22 @@ contract APTFarmLens {
         dexLens = _dexLens;
     }
 
-    function getAllVaults() external view returns (VaultData[] memory vaultsData) {
+    function getAllVaults() external view override returns (VaultData[] memory vaultsData) {
         vaultsData = _getAllVaults();
     }
 
-    function getAllPools() external view returns (VaultData[] memory farmsData) {
+    function getAllPools() external view override returns (VaultData[] memory farmsData) {
         farmsData = _getAllPools();
     }
 
     function getAllVaultsWithUserInfo(address user)
         external
         view
+        override
         returns (VaultDataWithUserInfo[] memory vaultsDataWithUserInfo)
     {
         VaultData[] memory vaultsData = _getAllVaults();
+
         vaultsDataWithUserInfo = new VaultDataWithUserInfo[](vaultsData.length);
 
         for (uint256 i = 0; i < vaultsData.length; i++) {
@@ -83,9 +44,11 @@ contract APTFarmLens {
     function getAllPoolsWithUserInfo(address user)
         external
         view
+        override
         returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo)
     {
         VaultData[] memory farmsData = _getAllPools();
+
         farmsDataWithUserInfo = new VaultDataWithUserInfo[](farmsData.length);
 
         for (uint256 i = 0; i < farmsData.length; i++) {
@@ -118,7 +81,7 @@ contract APTFarmLens {
     }
 
     function _getVault(IBaseVault vault) internal view returns (VaultData memory vaultData) {
-        (bool success,) = address(vault).staticcall(abi.encodeWithSelector(vault.getBalances.selector));
+        (bool success,) = address(vault).staticcall(abi.encodeWithSelector(vault.getBalances.selector)); // TODO add a way to get the vault type in the vault factory
 
         vaultData = _getVault(vault, success ? IVaultFactory.VaultType.Oracle : IVaultFactory.VaultType.Simple);
     }
@@ -177,6 +140,7 @@ contract APTFarmLens {
 
     function _getAllPools() internal view returns (VaultData[] memory farmsData) {
         uint256 totalPools = aptFarm.poolLength();
+
         farmsData = new VaultData[](totalPools);
 
         for (uint256 i = 0; i < totalPools; i++) {
