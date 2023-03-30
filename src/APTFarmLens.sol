@@ -4,7 +4,13 @@ pragma solidity 0.8.10;
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {
-    IAPTFarmLens, IVaultFactory, IBaseVault, IAPTFarm, IRewarder, IJoeDexLens
+    IAPTFarmLens,
+    IVaultFactory,
+    IBaseVault,
+    IStrategy,
+    IAPTFarm,
+    IRewarder,
+    IJoeDexLens
 } from "./interfaces/IAPTFarmLens.sol";
 
 contract APTFarmLens is IAPTFarmLens {
@@ -230,9 +236,9 @@ contract APTFarmLens is IAPTFarmLens {
      * @return vaultData The vault data
      */
     function _getVault(IBaseVault vault) internal view returns (VaultData memory vaultData) {
-        (bool success,) = address(vault).staticcall(abi.encodeWithSelector(vault.getBalances.selector)); // TODO add a way to get the vault type in the vault factory
+        IVaultFactory.VaultType vaultType = vaultFactory.getVaultType(address(vault));
 
-        vaultData = _getVault(vault, success ? IVaultFactory.VaultType.Oracle : IVaultFactory.VaultType.Simple);
+        vaultData = _getVault(vault, vaultType);
     }
 
     /**
@@ -257,9 +263,13 @@ contract APTFarmLens is IAPTFarmLens {
 
         (uint256 tokenXBalance, uint256 tokenYBalance) = vault.getBalances();
 
+        IStrategy strategy = vault.getStrategy();
+
         vaultData = VaultData({
             vault: vault,
             vaultType: vaultType,
+            strategy: strategy,
+            strategyType: vaultFactory.getStrategyType(address(strategy)),
             tokenX: tokenX,
             tokenY: tokenY,
             tokenXBalance: tokenXBalance,

@@ -4,6 +4,7 @@ pragma solidity 0.8.10;
 import {IJoeDexLens} from "joe-dex-lens/interfaces/IJoeDexLens.sol";
 
 import {IBaseVault} from "joe-v2-vault/interfaces/IBaseVault.sol";
+import {IStrategy} from "joe-v2-vault/interfaces/IStrategy.sol";
 import {IVaultFactory} from "joe-v2-vault/interfaces/IVaultFactory.sol";
 
 import {IAPTFarm} from "./IAPTFarm.sol";
@@ -13,6 +14,8 @@ interface IAPTFarmLens {
     struct VaultData {
         IBaseVault vault;
         IVaultFactory.VaultType vaultType;
+        IStrategy strategy;
+        IVaultFactory.StrategyType strategyType;
         address tokenX;
         address tokenY;
         uint256 tokenXBalance;

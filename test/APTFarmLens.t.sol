@@ -33,8 +33,12 @@ contract APTFarmLensTest is TestHelper {
         super.setUp();
 
         address implementation = address(new VaultFactory(wavax));
-        vaultFactory = VaultFactory(address(new TransparentUpgradeableProxy(implementation, address(1), "")));
-        vaultFactory.initialize(address(this));
+        vm.prank(address(1));
+        vaultFactory = VaultFactory(
+            address(
+                new TransparentUpgradeableProxy(implementation, address(1), abi.encodeWithSelector(VaultFactory.initialize.selector, address(this)))
+            )
+        );
 
         vaultFactory.setVaultImplementation(IVaultFactory.VaultType.Simple, address(new SimpleVault(vaultFactory)));
         vaultFactory.setVaultImplementation(IVaultFactory.VaultType.Oracle, address(new OracleVault(vaultFactory)));
@@ -86,51 +90,53 @@ contract APTFarmLensTest is TestHelper {
         assertEq(address(vaultsData[2].vault), oracleVault, "test_GetAllVaults::4");
 
         // simpleVault1
-        assertEq(vaultsData[0].tokenX, wavax, "test_GetAllVaults::5");
-        assertEq(vaultsData[0].tokenY, usdc, "test_GetAllVaults::6");
-        assertEq(vaultsData[0].tokenXBalance, 1e18, "test_GetAllVaults::7");
-        assertEq(vaultsData[0].tokenYBalance, 20e6, "test_GetAllVaults::8");
-        assertApproxEqRel(vaultsData[0].vaultBalanceUSD, 38e6, 1e16, "test_GetAllVaults::9");
-        assertEq(uint8(vaultsData[0].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::10");
-        assertTrue(vaultsData[0].hasFarm, "test_GetAllVaults::11");
-        assertEq(vaultsData[0].farmData.farmId, 1, " test_GetAllVaults::12 ");
-        assertEq(vaultsData[0].farmData.joePerSec, joePerSec, " test_GetAllVaults::13 ");
-        assertEq(address(vaultsData[0].farmData.rewarder), address(0), " test_GetAllVaults::14 ");
+        assertEq(address(vaultsData[0].strategy), address(strategy), "test_GetAllVaults::5");
+        assertEq(uint8(vaultsData[0].strategyType), uint8(IVaultFactory.StrategyType.Default), "test_GetAllVaults::6");
+        assertEq(vaultsData[0].tokenX, wavax, "test_GetAllVaults::7");
+        assertEq(vaultsData[0].tokenY, usdc, "test_GetAllVaults::8");
+        assertEq(vaultsData[0].tokenXBalance, 1e18, "test_GetAllVaults::9");
+        assertEq(vaultsData[0].tokenYBalance, 20e6, "test_GetAllVaults::10");
+        assertApproxEqRel(vaultsData[0].vaultBalanceUSD, 38e6, 1e16, "test_GetAllVaults::11");
+        assertEq(uint8(vaultsData[0].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::12");
+        assertTrue(vaultsData[0].hasFarm, "test_GetAllVaults::13");
+        assertEq(vaultsData[0].farmData.farmId, 1, " test_GetAllVaults::14");
+        assertEq(vaultsData[0].farmData.joePerSec, joePerSec, " test_GetAllVaults::15");
+        assertEq(address(vaultsData[0].farmData.rewarder), address(0), " test_GetAllVaults::16");
         assertApproxEqRel(
             vaultsData[0].farmData.aptBalance,
             SimpleVault(payable(simpleVault1)).totalSupply(),
             1e16,
-            " test_GetAllVaults::15 "
+            " test_GetAllVaults::17"
         );
-        assertApproxEqRel(vaultsData[0].farmData.aptBalanceUSD, 38e6, 1e16, " test_GetAllVaults::16 ");
+        assertApproxEqRel(vaultsData[0].farmData.aptBalanceUSD, 38e6, 1e16, " test_GetAllVaults::18");
 
         // simpleVault2
-        assertEq(vaultsData[1].tokenX, joeAvalanche, "test_GetAllVaults::17");
-        assertEq(vaultsData[1].tokenY, wavax, "test_GetAllVaults::18");
-        assertEq(vaultsData[1].tokenXBalance, 0, "test_GetAllVaults::19");
-        assertEq(vaultsData[1].tokenYBalance, 0, "test_GetAllVaults::20");
-        assertApproxEqRel(vaultsData[1].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::21");
-        assertEq(uint8(vaultsData[1].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::22");
-        assertFalse(vaultsData[1].hasFarm, "test_GetAllVaults::23");
-        assertEq(vaultsData[1].farmData.farmId, 0, " test_GetAllVaults::24 ");
-        assertEq(vaultsData[1].farmData.joePerSec, 0, " test_GetAllVaults::25 ");
-        assertEq(address(vaultsData[1].farmData.rewarder), address(0), " test_GetAllVaults::26 ");
-        assertApproxEqRel(vaultsData[1].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::27 ");
-        assertApproxEqRel(vaultsData[1].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::28 ");
+        assertEq(vaultsData[1].tokenX, joeAvalanche, "test_GetAllVaults::19");
+        assertEq(vaultsData[1].tokenY, wavax, "test_GetAllVaults::20");
+        assertEq(vaultsData[1].tokenXBalance, 0, "test_GetAllVaults::21");
+        assertEq(vaultsData[1].tokenYBalance, 0, "test_GetAllVaults::22");
+        assertApproxEqRel(vaultsData[1].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::23");
+        assertEq(uint8(vaultsData[1].vaultType), uint8(IVaultFactory.VaultType.Simple), "test_GetAllVaults::24");
+        assertFalse(vaultsData[1].hasFarm, "test_GetAllVaults::25");
+        assertEq(vaultsData[1].farmData.farmId, 0, " test_GetAllVaults::26");
+        assertEq(vaultsData[1].farmData.joePerSec, 0, " test_GetAllVaults::27");
+        assertEq(address(vaultsData[1].farmData.rewarder), address(0), " test_GetAllVaults::28");
+        assertApproxEqRel(vaultsData[1].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::29");
+        assertApproxEqRel(vaultsData[1].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::30");
 
         // oracleVault
-        assertEq(vaultsData[2].tokenX, usdt, "test_GetAllVaults::29");
-        assertEq(vaultsData[2].tokenY, usdc, "test_GetAllVaults::30");
-        assertEq(vaultsData[2].tokenXBalance, 0, "test_GetAllVaults::31");
-        assertEq(vaultsData[2].tokenYBalance, 0, "test_GetAllVaults::32");
-        assertApproxEqRel(vaultsData[2].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::33");
-        assertEq(uint8(vaultsData[2].vaultType), uint8(IVaultFactory.VaultType.Oracle), "test_GetAllVaults::34");
-        assertTrue(vaultsData[2].hasFarm, "test_GetAllVaults::35");
-        assertEq(vaultsData[2].farmData.farmId, 0, " test_GetAllVaults::36 ");
-        assertEq(vaultsData[2].farmData.joePerSec, joePerSec, " test_GetAllVaults::37 ");
-        assertEq(address(vaultsData[2].farmData.rewarder), address(0), " test_GetAllVaults::38 ");
-        assertApproxEqRel(vaultsData[2].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::39 ");
-        assertApproxEqRel(vaultsData[2].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::40 ");
+        assertEq(vaultsData[2].tokenX, usdt, "test_GetAllVaults::31");
+        assertEq(vaultsData[2].tokenY, usdc, "test_GetAllVaults::32");
+        assertEq(vaultsData[2].tokenXBalance, 0, "test_GetAllVaults::33");
+        assertEq(vaultsData[2].tokenYBalance, 0, "test_GetAllVaults::34");
+        assertApproxEqRel(vaultsData[2].vaultBalanceUSD, 0, 1e16, "test_GetAllVaults::35");
+        assertEq(uint8(vaultsData[2].vaultType), uint8(IVaultFactory.VaultType.Oracle), "test_GetAllVaults::36");
+        assertTrue(vaultsData[2].hasFarm, "test_GetAllVaults::37");
+        assertEq(vaultsData[2].farmData.farmId, 0, " test_GetAllVaults::38");
+        assertEq(vaultsData[2].farmData.joePerSec, joePerSec, " test_GetAllVaults::39");
+        assertEq(address(vaultsData[2].farmData.rewarder), address(0), " test_GetAllVaults::40");
+        assertApproxEqRel(vaultsData[2].farmData.aptBalance, 0, 1e16, " test_GetAllVaults::41");
+        assertApproxEqRel(vaultsData[2].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::42");
     }
 
     function test_GetPaginatedVaults() public {
