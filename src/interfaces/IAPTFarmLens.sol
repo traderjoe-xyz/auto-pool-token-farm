@@ -54,14 +54,36 @@ interface IAPTFarmLens {
 
     function getAllVaults() external view returns (VaultData[] memory vaultsData);
 
+    function getPaginatedVaultsFromType(IVaultFactory.VaultType vaultType, uint256 startId, uint256 pageSize)
+        external
+        view
+        returns (VaultData[] memory vaultsData);
+
     function getAllFarms() external view returns (VaultData[] memory farmsData);
+
+    function getPaginatedFarms(uint256 startId, uint256 pageSize)
+        external
+        view
+        returns (VaultData[] memory farmsData);
 
     function getAllVaultsWithUserInfo(address user)
         external
         view
         returns (VaultDataWithUserInfo[] memory vaultsDataWithUserInfo);
 
+    function getPaginatedVaultsWithUserInfo(
+        address user,
+        IVaultFactory.VaultType vaultType,
+        uint256 startId,
+        uint256 pageSize
+    ) external view returns (VaultDataWithUserInfo[] memory vaultsDataWithUserInfo);
+
     function getAllFarmsWithUserInfo(address user)
+        external
+        view
+        returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo);
+
+    function getPaginatedFarmsWithUserInfo(address user, uint256 startId, uint256 pageSize)
         external
         view
         returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo);

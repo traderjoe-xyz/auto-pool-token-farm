@@ -133,6 +133,32 @@ contract APTFarmLensTest is TestHelper {
         assertApproxEqRel(vaultsData[2].farmData.aptBalanceUSD, 0, 1e16, " test_GetAllVaults::40 ");
     }
 
+    function test_GetPaginatedVaults() public {
+        APTFarmLens.VaultData[] memory vaultsData =
+            aptFarmLens.getPaginatedVaultsFromType(IVaultFactory.VaultType.Simple, 0, 10);
+
+        assertEq(vaultsData.length, 2, "test_GetPaginatedVaults::1");
+
+        assertEq(address(vaultsData[0].vault), simpleVault1, "test_GetPaginatedVaults::2");
+        assertEq(address(vaultsData[1].vault), simpleVault2, "test_GetPaginatedVaults::3");
+
+        vaultsData = aptFarmLens.getPaginatedVaultsFromType(IVaultFactory.VaultType.Oracle, 0, 10);
+
+        assertEq(vaultsData.length, 1, "test_GetPaginatedVaults::4");
+
+        assertEq(address(vaultsData[0].vault), oracleVault, "test_GetPaginatedVaults::5");
+
+        // Test odd values
+        vaultsData = aptFarmLens.getPaginatedVaultsFromType(IVaultFactory.VaultType.Simple, 0, 1);
+        assertEq(vaultsData.length, 1, "test_GetPaginatedVaults::6");
+
+        vaultsData = aptFarmLens.getPaginatedVaultsFromType(IVaultFactory.VaultType.Simple, 1, 1);
+        assertEq(vaultsData.length, 1, "test_GetPaginatedVaults::7");
+
+        vaultsData = aptFarmLens.getPaginatedVaultsFromType(IVaultFactory.VaultType.Simple, 10, 2);
+        assertEq(vaultsData.length, 0, "test_GetPaginatedVaults::8");
+    }
+
     function test_GetAllFarms() public {
         APTFarmLens.VaultData[] memory farmsInfo = aptFarmLens.getAllFarms();
 
@@ -140,6 +166,21 @@ contract APTFarmLensTest is TestHelper {
 
         assertEq(address(farmsInfo[0].vault), oracleVault, "test_GetAllPools::2");
         assertEq(address(farmsInfo[1].vault), simpleVault1, "test_GetAllPools::3");
+    }
+
+    function test_GetPaginatedFarms() public {
+        APTFarmLens.VaultData[] memory farmsData = aptFarmLens.getPaginatedFarms(0, 10);
+
+        assertEq(farmsData.length, 2, "test_GetPaginatedFarms::1");
+        assertEq(address(farmsData[0].vault), oracleVault, "test_GetPaginatedFarms::2");
+        assertEq(address(farmsData[1].vault), simpleVault1, "test_GetPaginatedFarms::3");
+
+        farmsData = aptFarmLens.getPaginatedFarms(1, 1);
+        assertEq(farmsData.length, 1, "test_GetPaginatedFarms::4");
+        assertEq(address(farmsData[0].vault), simpleVault1, "test_GetPaginatedFarms::5");
+
+        farmsData = aptFarmLens.getPaginatedFarms(10, 2);
+        assertEq(farmsData.length, 0, "test_GetPaginatedFarms::6");
     }
 
     function test_GetAllVaultsWithUserInfo() public {
@@ -163,6 +204,46 @@ contract APTFarmLensTest is TestHelper {
         );
     }
 
+    function test_GetPaginatedVaultsWithUSerInfo() public {
+        APTFarmLens.VaultDataWithUserInfo[] memory vaultsDataWithUserInfo =
+            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Simple, 0, 10);
+
+        assertEq(vaultsDataWithUserInfo.length, 2, "test_GetPaginatedVaultsWithUSerInfo::1");
+        assertEq(
+            address(vaultsDataWithUserInfo[0].vaultData.vault), simpleVault1, "test_GetPaginatedVaultsWithUSerInfo::2"
+        );
+        assertEq(
+            address(vaultsDataWithUserInfo[1].vaultData.vault), simpleVault2, "test_GetPaginatedVaultsWithUSerInfo::3"
+        );
+        assertApproxEqRel(
+            vaultsDataWithUserInfo[0].vaultData.farmData.aptBalanceUSD,
+            38e6,
+            1e16,
+            "test_GetPaginatedVaultsWithUSerInfo::4"
+        );
+
+        vaultsDataWithUserInfo =
+            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Oracle, 0, 10);
+
+        assertEq(vaultsDataWithUserInfo.length, 1, "test_GetPaginatedVaultsWithUSerInfo::5");
+        assertEq(
+            address(vaultsDataWithUserInfo[0].vaultData.vault), oracleVault, "test_GetPaginatedVaultsWithUSerInfo::6"
+        );
+
+        vaultsDataWithUserInfo =
+            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Simple, 1, 1);
+
+        assertEq(vaultsDataWithUserInfo.length, 1, "test_GetPaginatedVaultsWithUSerInfo::7");
+        assertEq(
+            address(vaultsDataWithUserInfo[0].vaultData.vault), simpleVault2, "test_GetPaginatedVaultsWithUSerInfo::8"
+        );
+
+        vaultsDataWithUserInfo =
+            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Oracle, 10, 10);
+
+        assertEq(vaultsDataWithUserInfo.length, 0, "test_GetPaginatedVaultsWithUSerInfo::9");
+    }
+
     function test_GetAllPoolsWithUserInfo() public {
         APTFarmLens.VaultDataWithUserInfo[] memory farmsDataWithUserInfo =
             aptFarmLens.getAllFarmsWithUserInfo(address(this));
@@ -178,6 +259,51 @@ contract APTFarmLensTest is TestHelper {
         assertApproxEqRel(
             farmsDataWithUserInfo[1].farmDataWithUserInfo.userBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserInfo::5"
         );
+    }
+
+    function test_GetPaginatedFarmsWithUserInfo() public {
+        APTFarmLens.VaultDataWithUserInfo[] memory farmsDataWithUserInfo =
+            aptFarmLens.getPaginatedFarmsWithUserInfo(address(this), 0, 10);
+
+        assertEq(farmsDataWithUserInfo.length, 2, "test_GetPaginatedFarmsWithUserInfo::1");
+        assertEq(
+            address(farmsDataWithUserInfo[0].vaultData.vault), oracleVault, "test_GetPaginatedFarmsWithUserInfo::2"
+        );
+        assertApproxEqRel(
+            farmsDataWithUserInfo[0].vaultData.farmData.aptBalanceUSD, 0, 1e16, "test_GetPaginatedFarmsWithUserInfo::3"
+        );
+        assertApproxEqRel(
+            farmsDataWithUserInfo[0].farmDataWithUserInfo.userBalanceUSD,
+            0,
+            1e16,
+            "test_GetPaginatedFarmsWithUserInfo::4"
+        );
+        assertEq(
+            address(farmsDataWithUserInfo[1].vaultData.vault), simpleVault1, "test_GetPaginatedFarmsWithUserInfo::5"
+        );
+        assertApproxEqRel(
+            farmsDataWithUserInfo[1].vaultData.farmData.aptBalanceUSD,
+            38e6,
+            1e16,
+            "test_GetPaginatedFarmsWithUserInfo::6"
+        );
+        assertApproxEqRel(
+            farmsDataWithUserInfo[1].farmDataWithUserInfo.userBalanceUSD,
+            38e6,
+            1e16,
+            "test_GetPaginatedFarmsWithUserInfo::7"
+        );
+
+        farmsDataWithUserInfo = aptFarmLens.getPaginatedFarmsWithUserInfo(address(this), 1, 1);
+
+        assertEq(farmsDataWithUserInfo.length, 1, "test_GetPaginatedFarmsWithUserInfo::8");
+        assertEq(
+            address(farmsDataWithUserInfo[0].vaultData.vault), simpleVault1, "test_GetPaginatedFarmsWithUserInfo::9"
+        );
+
+        farmsDataWithUserInfo = aptFarmLens.getPaginatedFarmsWithUserInfo(address(this), 10, 10);
+
+        assertEq(farmsDataWithUserInfo.length, 0, "test_GetPaginatedFarmsWithUserInfo::10");
     }
 
     function depositToVault(address newVault, address from, uint256 amountX, uint256 amountY) public {

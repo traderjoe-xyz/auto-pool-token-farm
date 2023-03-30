@@ -38,11 +38,42 @@ contract APTFarmLens is IAPTFarmLens {
     }
 
     /**
+     * @notice Returns paginated data for every vault created by the vault factory
+     * @param vaultType The vault type
+     * @param startId The start id
+     * @param pageSize The amount of vaults to get
+     * @return vaultsData The vault data array for every vault created by the vault factory
+     */
+    function getPaginatedVaultsFromType(IVaultFactory.VaultType vaultType, uint256 startId, uint256 pageSize)
+        external
+        view
+        override
+        returns (VaultData[] memory vaultsData)
+    {
+        vaultsData = _getVaults(vaultType, startId, pageSize);
+    }
+
+    /**
      * @notice Returns data for every vault that has a farm
      * @return farmsData The vault data array for every vault that has a farm
      */
     function getAllFarms() external view override returns (VaultData[] memory farmsData) {
         farmsData = _getAllFarms();
+    }
+
+    /**
+     * @notice Returns paginated data for every vault that has a farm
+     * @param startId The start id
+     * @param pageSize The amount of vaults to get
+     * @return farmsData The vault data array for every vault that has a farm
+     */
+    function getPaginatedFarms(uint256 startId, uint256 pageSize)
+        external
+        view
+        override
+        returns (VaultData[] memory farmsData)
+    {
+        farmsData = _getFarms(startId, pageSize);
     }
 
     /**
@@ -57,6 +88,29 @@ contract APTFarmLens is IAPTFarmLens {
         returns (VaultDataWithUserInfo[] memory vaultsDataWithUserInfo)
     {
         VaultData[] memory vaultsData = _getAllVaults();
+
+        vaultsDataWithUserInfo = new VaultDataWithUserInfo[](vaultsData.length);
+
+        for (uint256 i = 0; i < vaultsData.length; i++) {
+            vaultsDataWithUserInfo[i] = _getVaultUserInfo(vaultsData[i], user);
+        }
+    }
+    /**
+     * @notice Returns paginated data for every vault created by the vault factory with the user's info
+     * @param user The user's address
+     * @param vaultType The vault type
+     * @param startId The start id
+     * @param pageSize The amount of vaults to get
+     * @return vaultsDataWithUserInfo The vault data array with the user's info
+     */
+
+    function getPaginatedVaultsWithUserInfo(
+        address user,
+        IVaultFactory.VaultType vaultType,
+        uint256 startId,
+        uint256 pageSize
+    ) external view override returns (VaultDataWithUserInfo[] memory vaultsDataWithUserInfo) {
+        VaultData[] memory vaultsData = _getVaults(vaultType, startId, pageSize);
 
         vaultsDataWithUserInfo = new VaultDataWithUserInfo[](vaultsData.length);
 
@@ -86,6 +140,28 @@ contract APTFarmLens is IAPTFarmLens {
     }
 
     /**
+     * @notice Returns paginated data for every vault that has a farm, with the user's info
+     * @param user The user's address
+     * @param startId The start id
+     * @param pageSize The amount of vaults to get
+     * @return farmsDataWithUserInfo The vault data array with the user's info
+     */
+    function getPaginatedFarmsWithUserInfo(address user, uint256 startId, uint256 pageSize)
+        external
+        view
+        override
+        returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo)
+    {
+        VaultData[] memory farmsData = _getFarms(startId, pageSize);
+
+        farmsDataWithUserInfo = new VaultDataWithUserInfo[](farmsData.length);
+
+        for (uint256 i = 0; i < farmsData.length; i++) {
+            farmsDataWithUserInfo[i] = _getVaultUserInfo(farmsData[i], user);
+        }
+    }
+
+    /**
      * @dev Gets all the vaults created by the vault factory
      * @return vaultsData The vault data array
      */
@@ -101,6 +177,35 @@ contract APTFarmLens is IAPTFarmLens {
 
         for (uint256 i = 0; i < totalOracleVaults; i++) {
             vaultsData[totalSimpleVaults + i] = _getVaultAt(IVaultFactory.VaultType.Oracle, i);
+        }
+    }
+
+    /**
+     * @dev Gets all the vaults from the specified type created by the vault factory
+     * @param vaultType The vault type
+     * @param startId The start id
+     * @param pageSize The amount of vaults to get
+     * @return vaultsData The vault data array
+     */
+    function _getVaults(IVaultFactory.VaultType vaultType, uint256 startId, uint256 pageSize)
+        internal
+        view
+        returns (VaultData[] memory vaultsData)
+    {
+        uint256 totalSimpleVaults = vaultFactory.getNumberOfVaults(vaultType);
+
+        if (startId >= totalSimpleVaults) {
+            return vaultsData;
+        }
+
+        if (startId + pageSize > totalSimpleVaults) {
+            pageSize = totalSimpleVaults - startId;
+        }
+
+        vaultsData = new VaultData[](pageSize);
+
+        for (uint256 i = 0; i < pageSize; i++) {
+            vaultsData[i] = _getVaultAt(vaultType, startId + i);
         }
     }
 
@@ -199,12 +304,31 @@ contract APTFarmLens is IAPTFarmLens {
      * @return farmsData The farm data array
      */
     function _getAllFarms() internal view returns (VaultData[] memory farmsData) {
+        farmsData = _getFarms(0, type(uint256).max);
+    }
+
+    /**
+     * @dev Gets the paginated farm data for every vault that has a farm
+     * @param startId The start id
+     * @param pageSize The amount of farms to get
+     * @return farmsData The farm data array
+     */
+    function _getFarms(uint256 startId, uint256 pageSize) internal view returns (VaultData[] memory farmsData) {
         uint256 totalPools = aptFarm.poolLength();
 
-        farmsData = new VaultData[](totalPools);
+        if (startId >= totalPools) {
+            return farmsData;
+        }
 
-        for (uint256 i = 0; i < totalPools; i++) {
-            IBaseVault vault = IBaseVault(address(aptFarm.poolInfo(i).apToken));
+        if (startId + pageSize > totalPools) {
+            pageSize = totalPools - startId;
+        }
+
+        farmsData = new VaultData[](pageSize);
+
+        for (uint256 i = 0; i < pageSize; i++) {
+            IBaseVault vault = IBaseVault(address(aptFarm.poolInfo(startId + i).apToken));
+
             farmsData[i] = _getVault(vault);
         }
     }
