@@ -168,10 +168,10 @@ contract APTFarmLensTest is TestHelper {
     function test_GetAllFarms() public {
         APTFarmLens.VaultData[] memory farmsInfo = aptFarmLens.getAllFarms();
 
-        assertEq(farmsInfo.length, 2, "test_GetAllPools::1");
+        assertEq(farmsInfo.length, 2, "test_GetAllFarms::1");
 
-        assertEq(address(farmsInfo[0].vault), oracleVault, "test_GetAllPools::2");
-        assertEq(address(farmsInfo[1].vault), simpleVault1, "test_GetAllPools::3");
+        assertEq(address(farmsInfo[0].vault), oracleVault, "test_GetAllFarms::2");
+        assertEq(address(farmsInfo[1].vault), simpleVault1, "test_GetAllFarms::3");
     }
 
     function test_GetPaginatedFarms() public {
@@ -250,20 +250,20 @@ contract APTFarmLensTest is TestHelper {
         assertEq(vaultsDataWithUserInfo.length, 0, "test_GetPaginatedVaultsWithUSerInfo::9");
     }
 
-    function test_GetAllPoolsWithUserInfo() public {
+    function test_GetAllFarmsWithUserInfo() public {
         APTFarmLens.VaultDataWithUserInfo[] memory farmsDataWithUserInfo =
             aptFarmLens.getAllFarmsWithUserInfo(address(this));
 
-        assertEq(farmsDataWithUserInfo.length, 2, "test_GetAllPoolsWithUserInfo::1");
+        assertEq(farmsDataWithUserInfo.length, 2, "test_GetAllFarmsWithUserInfo::1");
 
-        assertEq(address(farmsDataWithUserInfo[0].vaultData.vault), oracleVault, "test_GetAllPoolsWithUserInfo::2");
-        assertEq(address(farmsDataWithUserInfo[1].vaultData.vault), simpleVault1, "test_GetAllPoolsWithUserInfo::3");
+        assertEq(address(farmsDataWithUserInfo[0].vaultData.vault), oracleVault, "test_GetAllFarmsWithUserInfo::2");
+        assertEq(address(farmsDataWithUserInfo[1].vaultData.vault), simpleVault1, "test_GetAllFarmsWithUserInfo::3");
 
         assertApproxEqRel(
-            farmsDataWithUserInfo[1].vaultData.farmData.aptBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserInfo::4"
+            farmsDataWithUserInfo[1].vaultData.farmData.aptBalanceUSD, 38e6, 1e16, "test_GetAllFarmsWithUserInfo::4"
         );
         assertApproxEqRel(
-            farmsDataWithUserInfo[1].farmDataWithUserInfo.userBalanceUSD, 38e6, 1e16, "test_GetAllPoolsWithUserInfo::5"
+            farmsDataWithUserInfo[1].farmDataWithUserInfo.userBalanceUSD, 38e6, 1e16, "test_GetAllFarmsWithUserInfo::5"
         );
     }
 

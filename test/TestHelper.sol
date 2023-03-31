@@ -91,12 +91,12 @@ abstract contract TestHelper is Test {
     }
 
     function _add(ERC20Mock lpToken, uint256 joePerSec, IRewarder _rewarder) internal returns (uint256 pid) {
-        pid = aptFarm.poolLength();
+        pid = aptFarm.farmLength();
         aptFarm.add(joePerSec, IERC20(lpToken), _rewarder);
     }
 
     function _deposit(uint256 pid, uint256 amount) internal {
-        ERC20Mock apToken = ERC20Mock(address(aptFarm.poolInfo(pid).apToken));
+        ERC20Mock apToken = ERC20Mock(address(aptFarm.farmInfo(pid).apToken));
 
         deal(address(apToken), address(this), amount);
         apToken.approve(address(aptFarm), amount);

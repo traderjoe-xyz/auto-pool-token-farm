@@ -147,11 +147,11 @@ contract SimpleRewarderPerSecTest is TestHelper {
     function test_UpdateRewarder() public {
         _add(lpToken1, 1e18);
 
-        assertEq(address(aptFarm.poolInfo(0).rewarder), address(0), "test_UpdateRewarder::1");
+        assertEq(address(aptFarm.farmInfo(0).rewarder), address(0), "test_UpdateRewarder::1");
 
         aptFarm.set(0, 2e18, rewarder, true);
 
-        assertEq(address(aptFarm.poolInfo(0).rewarder), address(rewarder), "test_UpdateRewarder::1");
+        assertEq(address(aptFarm.farmInfo(0).rewarder), address(rewarder), "test_UpdateRewarder::1");
     }
 
     function test_CreateRewardersWithSameParameters(uint256 tokenPerSec) public {

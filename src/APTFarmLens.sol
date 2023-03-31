@@ -253,9 +253,9 @@ contract APTFarmLens is IAPTFarmLens {
         returns (VaultData memory vaultData)
     {
         FarmData memory farmInfo;
-        if (aptFarm.hasPool(address(vault))) {
-            uint256 poolId = aptFarm.vaultPoolId(address(vault));
-            farmInfo = _getFarm(poolId);
+        if (aptFarm.hasFarm(address(vault))) {
+            uint256 farmId = aptFarm.vaultFarmId(address(vault));
+            farmInfo = _getFarm(farmId);
         }
 
         address tokenX = address(vault.getTokenX());
@@ -276,7 +276,7 @@ contract APTFarmLens is IAPTFarmLens {
             tokenYBalance: tokenYBalance,
             totalSupply: vault.totalSupply(),
             vaultBalanceUSD: _getVaultTokenUSDValue(vault, vault.totalSupply()),
-            hasFarm: aptFarm.hasPool(address(vault)),
+            hasFarm: aptFarm.hasFarm(address(vault)),
             farmData: farmInfo
         });
     }
@@ -324,41 +324,41 @@ contract APTFarmLens is IAPTFarmLens {
      * @return farmsData The farm data array
      */
     function _getFarms(uint256 startId, uint256 pageSize) internal view returns (VaultData[] memory farmsData) {
-        uint256 totalPools = aptFarm.poolLength();
+        uint256 totalFarms = aptFarm.farmLength();
 
-        if (startId >= totalPools) {
+        if (startId >= totalFarms) {
             return farmsData;
         }
 
-        if (startId + pageSize > totalPools) {
-            pageSize = totalPools - startId;
+        if (startId + pageSize > totalFarms) {
+            pageSize = totalFarms - startId;
         }
 
         farmsData = new VaultData[](pageSize);
 
         for (uint256 i = 0; i < pageSize; i++) {
-            IBaseVault vault = IBaseVault(address(aptFarm.poolInfo(startId + i).apToken));
+            IBaseVault vault = IBaseVault(address(aptFarm.farmInfo(startId + i).apToken));
 
             farmsData[i] = _getVault(vault);
         }
     }
 
     /**
-     * @dev Gets the farm information for the specified pool
-     * @param poolId The pool id
+     * @dev Gets the farm information for the specified farm
+     * @param farmId The farm id
      * @return farmData The farm data
      */
-    function _getFarm(uint256 poolId) internal view returns (FarmData memory farmData) {
-        IAPTFarm.PoolInfo memory poolInfo = aptFarm.poolInfo(poolId);
+    function _getFarm(uint256 farmId) internal view returns (FarmData memory farmData) {
+        IAPTFarm.FarmInfo memory farmInfo = aptFarm.farmInfo(farmId);
 
-        IBaseVault vault = IBaseVault(address(poolInfo.apToken));
+        IBaseVault vault = IBaseVault(address(farmInfo.apToken));
 
         farmData = FarmData({
-            farmId: poolId,
-            joePerSec: poolInfo.joePerSec,
-            rewarder: IRewarder(poolInfo.rewarder),
-            aptBalance: poolInfo.apToken.balanceOf(address(aptFarm)),
-            aptBalanceUSD: _getVaultTokenUSDValue(vault, poolInfo.apToken.balanceOf(address(aptFarm)))
+            farmId: farmId,
+            joePerSec: farmInfo.joePerSec,
+            rewarder: IRewarder(farmInfo.rewarder),
+            aptBalance: farmInfo.apToken.balanceOf(address(aptFarm)),
+            aptBalanceUSD: _getVaultTokenUSDValue(vault, farmInfo.apToken.balanceOf(address(aptFarm)))
         });
     }
 

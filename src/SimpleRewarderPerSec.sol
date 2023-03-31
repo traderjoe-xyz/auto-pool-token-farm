@@ -24,7 +24,7 @@ import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
  *
  * Issue with the previous version is that this fraction, `tokenReward*(ACC_TOKEN_PRECISION)/(aptSupply)`,
  * can return 0 or be very inacurate with some tokens:
- *      uint256 timeElapsed = block.timestamp-(pool.lastRewardTimestamp);
+ *      uint256 timeElapsed = block.timestamp-(farm.lastRewardTimestamp);
  *      uint256 tokenReward = timeElapsed*(tokenPerSec);
  *      accTokenPerShare = accTokenPerShare+(
  *          tokenReward*(ACC_TOKEN_PRECISION)/(aptSupply)
@@ -61,9 +61,9 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
     /**
-     * @notice Info of the poolInfo.
+     * @notice Info of the farmInfo.
      */
-    PoolInfo public poolInfo;
+    FarmInfo public farmInfo;
 
     /**
      * @notice Info of each user that stakes LP tokens.
@@ -90,7 +90,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         __ReentrancyGuard_init();
 
         tokenPerSec = _tokenPerSec;
-        poolInfo = PoolInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
+        farmInfo = FarmInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
 
         _transferOwnership(_owner);
     }
@@ -134,14 +134,14 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @param _aptAmount Number of LP tokens the user has
      */
     function onJoeReward(address _user, uint256 _aptAmount) external override onlyAPTFarm nonReentrant {
-        _updatePool();
+        _updateFarm();
 
-        PoolInfo memory pool = poolInfo;
+        FarmInfo memory farm = farmInfo;
         UserInfo storage user = userInfo[_user];
 
         uint256 pending;
         if (user.amount > 0) {
-            pending = (user.amount * pool.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
+            pending = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
 
             uint256 rewardBalance = _balance();
             if (_isNative()) {
@@ -164,16 +164,16 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         }
 
         user.amount = _aptAmount;
-        user.rewardDebt = (user.amount * pool.accTokenPerShare) / ACC_TOKEN_PRECISION;
+        user.rewardDebt = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
         emit OnReward(_user, pending - user.unpaidRewards);
     }
 
     /**
-     * @notice Update reward variables of the given poolInfo.
-     * @return pool Returns the pool that was updated.
+     * @notice Update reward variables of the given farmInfo.
+     * @return farm Returns the farm that was updated.
      */
-    function updatePool() external returns (PoolInfo memory pool) {
-        pool = _updatePool();
+    function updateFarm() external returns (FarmInfo memory farm) {
+        farm = _updateFarm();
     }
 
     /**
@@ -182,14 +182,14 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @return pending reward for a given user.
      */
     function pendingTokens(address _user) external view override returns (uint256 pending) {
-        PoolInfo memory pool = poolInfo;
+        FarmInfo memory farm = farmInfo;
         UserInfo storage user = userInfo[_user];
 
-        uint256 accTokenPerShare = pool.accTokenPerShare;
+        uint256 accTokenPerShare = farm.accTokenPerShare;
         uint256 aptSupply = _apToken().balanceOf(address(_aptFarm()));
 
-        if (block.timestamp > pool.lastRewardTimestamp && aptSupply != 0) {
-            uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
+        if (block.timestamp > farm.lastRewardTimestamp && aptSupply != 0) {
+            uint256 timeElapsed = block.timestamp - farm.lastRewardTimestamp;
             uint256 tokenReward = timeElapsed * tokenPerSec;
             accTokenPerShare = accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / aptSupply;
         }
@@ -205,11 +205,11 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
-     * @notice Sets the distribution reward rate. This will also update the poolInfo.
+     * @notice Sets the distribution reward rate. This will also update the farmInfo.
      * @param _tokenPerSec The number of tokens to distribute per second
      */
     function setRewardRate(uint256 _tokenPerSec) external onlyOwner {
-        _updatePool();
+        _updateFarm();
 
         uint256 oldRate = tokenPerSec;
         tokenPerSec = _tokenPerSec;
@@ -230,20 +230,20 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
-    function _updatePool() internal returns (PoolInfo memory pool) {
-        pool = poolInfo;
+    function _updateFarm() internal returns (FarmInfo memory farm) {
+        farm = farmInfo;
 
-        if (block.timestamp > pool.lastRewardTimestamp) {
+        if (block.timestamp > farm.lastRewardTimestamp) {
             uint256 aptSupply = _apToken().balanceOf(address(_aptFarm()));
 
             if (aptSupply > 0) {
-                uint256 timeElapsed = block.timestamp - pool.lastRewardTimestamp;
+                uint256 timeElapsed = block.timestamp - farm.lastRewardTimestamp;
                 uint256 tokenReward = timeElapsed * tokenPerSec;
-                pool.accTokenPerShare = pool.accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / aptSupply;
+                farm.accTokenPerShare = farm.accTokenPerShare + (tokenReward * ACC_TOKEN_PRECISION) / aptSupply;
             }
 
-            pool.lastRewardTimestamp = block.timestamp;
-            poolInfo = pool;
+            farm.lastRewardTimestamp = block.timestamp;
+            farmInfo = farm;
         }
     }
 
