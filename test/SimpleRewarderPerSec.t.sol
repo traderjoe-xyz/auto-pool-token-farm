@@ -53,13 +53,14 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarderFactory = new RewarderFactory(IAPTFarm(aptFarm));
     }
 
-    function test_DepositNative(uint256 amount) public {
+    function test_Receive(uint256 amount) public {
         deal(address(this), amount);
 
         deal(address(this), amount);
-        rewarder.depositNative{value: amount}();
+        (bool success,) = payable(rewarder).call{value: amount}("");
 
-        assertEq(address(rewarder).balance, amount, "test_Receive::1");
+        assertTrue(success, "test_Receive::1");
+        assertEq(address(rewarder).balance, amount, "test_Receive::2");
     }
 
     function test_Balance(uint256 amount) public {
@@ -73,8 +74,9 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, true);
 
         deal(address(this), amount);
-        rewarder.depositNative{value: amount}();
+        (bool success,) = payable(rewarder).call{value: amount}("");
 
+        assertTrue(success, "test_BalanceNative::0");
         assertEq(address(rewarder).balance, amount, "test_BalanceNative::1");
         assertEq(rewarder.balance(), amount, "test_BalanceNative::2");
     }

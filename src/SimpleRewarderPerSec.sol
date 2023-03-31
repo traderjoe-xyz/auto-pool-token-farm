@@ -124,9 +124,18 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
-     * @notice payable function needed to receive AVAX
+     * @dev Receive function. Mainly added to silence the compiler warning.
+     * Highly unlikely to be used as the rewarder needs at least 61 bytes of immutable data added to the payload
+     * (3 addresses and 1 bytes), so this function should never be called.
      */
-    function depositNative() external payable {}
+    receive() external payable {}
+
+    /**
+     * @notice Allows the contract to receive native tokens.
+     * @dev We can't use the `receive` function because the immutable clone library adds calldata to the payload
+     * that are taken as a function signature and parameters.
+     */
+    fallback() external payable {}
 
     /**
      * @notice Function called by MasterChefJoe whenever staker claims JOE harvest. Allows staker to also receive a 2nd reward token.
