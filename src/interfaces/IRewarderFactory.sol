@@ -12,12 +12,21 @@ interface IRewarderFactory {
     event RewarderCreated(
         address indexed rewarder, address indexed rewardToken, address indexed apToken, bool isNative, address owner
     );
+    event SimpleRewarderImplementationChanged(address indexed simpleRewarderImplementation);
 
-    function simpleRewarderImplementation() external view returns (address);
+    function simpleRewarderImplementation() external view returns (address simpleRewarderImplementation);
 
-    function aptFarm() external view returns (IAPTFarm);
+    function aptFarm() external view returns (IAPTFarm aptFarm);
+
+    function rewarders(uint256 index) external view returns (address rewarder);
+
+    function getRewarders() external view returns (address[] memory rewarders);
 
     function createRewarder(IERC20 rewardToken, IERC20 apToken, uint256 tokenPerSec, bool isNative)
         external
         returns (SimpleRewarderPerSec rewarder);
+
+    function setSimpleRewarderImplementation(address simpleRewarderImplementation) external;
+
+    function grantCreatorRole(address account) external;
 }
