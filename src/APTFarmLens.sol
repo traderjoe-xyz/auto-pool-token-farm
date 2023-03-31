@@ -301,12 +301,13 @@ contract APTFarmLens is IAPTFarmLens {
         returns (VaultDataWithUserInfo memory vaultDataWithUserInfo)
     {
         uint256 userBalance = vaultData.vault.balanceOf(user);
-        uint256 userBalanceUSD = _getVaultTokenUSDValue(vaultData.vault, userBalance);
+        uint256 userBalanceUSD =
+            vaultData.totalSupply == 0 ? 0 : vaultData.vaultBalanceUSD * userBalance / vaultData.totalSupply;
 
         FarmDataWithUserInfo memory farmDataWithUserInfo;
 
         if (vaultData.hasFarm) {
-            farmDataWithUserInfo = _getFarmUserInfo(vaultData.vault, vaultData.farmData, user);
+            farmDataWithUserInfo = _getFarmUserInfo(vaultData.farmData, user);
         }
 
         vaultDataWithUserInfo = VaultDataWithUserInfo({
@@ -372,18 +373,18 @@ contract APTFarmLens is IAPTFarmLens {
 
     /**
      * @dev Appends the user's info to the farm data
-     * @param vault The vault address
      * @param farmData The farm data
      * @param user The user's address
      * @return farmDataWithUserInfo The farm data with the user's info
      */
-    function _getFarmUserInfo(IBaseVault vault, FarmData memory farmData, address user)
+    function _getFarmUserInfo(FarmData memory farmData, address user)
         internal
         view
         returns (FarmDataWithUserInfo memory farmDataWithUserInfo)
     {
         uint256 userBalance = aptFarm.userInfo(farmData.farmId, user).amount;
-        uint256 userBalanceUSD = _getVaultTokenUSDValue(vault, userBalance);
+        uint256 userBalanceUSD =
+            farmData.aptBalance == 0 ? 0 : farmData.aptBalanceUSD * userBalance / farmData.aptBalance;
 
         (uint256 pendingJoe,,, uint256 pendingBonusToken) = aptFarm.pendingTokens(farmData.farmId, user);
 
