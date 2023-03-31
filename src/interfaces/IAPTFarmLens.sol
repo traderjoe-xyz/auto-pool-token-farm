@@ -16,6 +16,10 @@ interface IAPTFarmLens {
         IVaultFactory.VaultType vaultType;
         IStrategy strategy;
         IVaultFactory.StrategyType strategyType;
+        bool isDepositsPaused;
+        bool isInEmergencyMode;
+        address lbPair;
+        uint256 lbPairBinStep;
         address tokenX;
         address tokenY;
         uint256 tokenXBalance;
