@@ -96,7 +96,7 @@ contract APTFarmHandler is TestHelper {
         pid = bound(pid, 0, 2);
         amount = bound(amount, 0, apSupplyUpperBound);
 
-        IERC20 apToken = _aptFarm.poolInfo(pid).apToken;
+        IERC20 apToken = _aptFarm.farmInfo(pid).apToken;
 
         if (amount > apToken.balanceOf(_currentActor)) {
             ERC20Mock(address(apToken)).mint(_currentActor, amount - apToken.balanceOf(_currentActor));
@@ -171,9 +171,9 @@ contract APTFarmHandler is TestHelper {
             uint256 secondsToWarp = bound(randomnessSeed, 0, timePassedUpperBound);
             currentTimestamp += secondsToWarp;
 
-            joeDistributed += secondsToWarp * _aptFarm.poolInfo(0).joePerSec;
-            joeDistributed += secondsToWarp * _aptFarm.poolInfo(1).joePerSec;
-            joeDistributed += secondsToWarp * _aptFarm.poolInfo(2).joePerSec;
+            joeDistributed += secondsToWarp * _aptFarm.farmInfo(0).joePerSec;
+            joeDistributed += secondsToWarp * _aptFarm.farmInfo(1).joePerSec;
+            joeDistributed += secondsToWarp * _aptFarm.farmInfo(2).joePerSec;
         }
     }
 

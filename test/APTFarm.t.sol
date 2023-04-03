@@ -10,7 +10,7 @@ contract APTFarmTest is TestHelper {
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event UpdatePool(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
+    event UpdateFarm(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
     event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
     event BatchHarvest(address indexed user, uint256[] pids);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -21,34 +21,34 @@ contract APTFarmTest is TestHelper {
 
         assertTrue(address(aptFarm) != address(0));
         assertEq(address(aptFarm.joe()), address(joe));
-        assertEq(aptFarm.poolLength(), 0);
+        assertEq(aptFarm.farmLength(), 0);
     }
 
-    function test_AddPool(uint256 joePerSec1, uint256 joePerSec2) public {
+    function test_AddFarm(uint256 joePerSec1, uint256 joePerSec2) public {
         vm.expectEmit();
         emit Add(0, joePerSec1, IERC20(lpToken1), IRewarder(address(0)));
         aptFarm.add(joePerSec1, IERC20(lpToken1), IRewarder(address(0)));
 
-        assertEq(aptFarm.poolLength(), 1, "test_AddPool::1");
-        assertEq(address(aptFarm.poolInfo(0).apToken), address(lpToken1), "test_AddPool::2");
-        assertEq(aptFarm.poolInfo(0).joePerSec, joePerSec1, "test_AddPool::3");
-        assertEq(aptFarm.poolInfo(0).lastRewardTimestamp, block.timestamp, "test_AddPool::4");
-        assertEq(aptFarm.poolInfo(0).accJoePerShare, 0, "test_AddPool::5");
-        assertTrue(aptFarm.hasPool(lpToken1), "test_AddPool::6");
+        assertEq(aptFarm.farmLength(), 1, "test_AddFarm::1");
+        assertEq(address(aptFarm.farmInfo(0).apToken), address(lpToken1), "test_AddFarm::2");
+        assertEq(aptFarm.farmInfo(0).joePerSec, joePerSec1, "test_AddFarm::3");
+        assertEq(aptFarm.farmInfo(0).lastRewardTimestamp, block.timestamp, "test_AddFarm::4");
+        assertEq(aptFarm.farmInfo(0).accJoePerShare, 0, "test_AddFarm::5");
+        assertTrue(aptFarm.hasFarm(address(lpToken1)), "test_AddFarm::6");
 
         vm.expectEmit();
         emit Add(1, joePerSec2, IERC20(lpToken2), IRewarder(address(0)));
         aptFarm.add(joePerSec2, IERC20(lpToken2), IRewarder(address(0)));
 
-        assertEq(aptFarm.poolLength(), 2, "test_AddPool::7");
-        assertEq(address(aptFarm.poolInfo(1).apToken), address(lpToken2), "test_AddPool::8");
-        assertEq(aptFarm.poolInfo(1).joePerSec, joePerSec2, "test_AddPool::9");
-        assertEq(aptFarm.poolInfo(1).lastRewardTimestamp, block.timestamp, "test_AddPool::10");
-        assertEq(aptFarm.poolInfo(1).accJoePerShare, 0, "test_AddPool::11");
-        assertTrue(aptFarm.hasPool(lpToken2), "test_AddPool::12");
+        assertEq(aptFarm.farmLength(), 2, "test_AddFarm::7");
+        assertEq(address(aptFarm.farmInfo(1).apToken), address(lpToken2), "test_AddFarm::8");
+        assertEq(aptFarm.farmInfo(1).joePerSec, joePerSec2, "test_AddFarm::9");
+        assertEq(aptFarm.farmInfo(1).lastRewardTimestamp, block.timestamp, "test_AddFarm::10");
+        assertEq(aptFarm.farmInfo(1).accJoePerShare, 0, "test_AddFarm::11");
+        assertTrue(aptFarm.hasFarm(address(lpToken2)), "test_AddFarm::12");
     }
 
-    function test_Revert_AddPoolWhenNotOwner(address alice) public {
+    function test_Revert_AddFarmWhenNotOwner(address alice) public {
         vm.assume(alice != address(this));
 
         vm.expectRevert("Ownable: caller is not the owner");
@@ -56,10 +56,10 @@ contract APTFarmTest is TestHelper {
         aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
     }
 
-    function test_Revert_AddAlreadyExistingPool() public {
+    function test_Revert_AddAlreadyExistingFarm() public {
         aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
 
-        vm.expectRevert(abi.encodeWithSelector(IAPTFarm.APTFarm__TokenAlreadyHasPool.selector, lpToken1));
+        vm.expectRevert(abi.encodeWithSelector(IAPTFarm.APTFarm__TokenAlreadyHasFarm.selector, lpToken1));
         aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
     }
 
@@ -219,7 +219,7 @@ contract APTFarmTest is TestHelper {
         );
     }
 
-    function test_SetPool(uint256 oldJoePerSec, uint256 newJoePerSec, uint256 timePassed) public {
+    function test_SetFarm(uint256 oldJoePerSec, uint256 newJoePerSec, uint256 timePassed) public {
         oldJoePerSec = bound(oldJoePerSec, joePerSecLowerBound, joePerSecUpperBound);
         newJoePerSec = bound(newJoePerSec, joePerSecLowerBound, joePerSecUpperBound);
         timePassed = bound(timePassed, timePassedLowerBound, timePassedUpperBound);
@@ -232,14 +232,14 @@ contract APTFarmTest is TestHelper {
         emit Set(0, newJoePerSec, IRewarder(address(0)), false);
         aptFarm.set(0, newJoePerSec, IRewarder(address(0)), false);
 
-        assertEq(aptFarm.poolInfo(0).joePerSec, newJoePerSec, "test_SetPool::1");
-        assertEq(aptFarm.poolInfo(0).lastRewardTimestamp, block.timestamp, "test_SetPool::2");
+        assertEq(aptFarm.farmInfo(0).joePerSec, newJoePerSec, "test_SetFarm::1");
+        assertEq(aptFarm.farmInfo(0).lastRewardTimestamp, block.timestamp, "test_SetFarm::2");
 
         skip(timePassed);
 
         (uint256 pendingJoe,,,) = aptFarm.pendingTokens(0, address(this));
 
-        assertEq(pendingJoe, pendingJoeBefore + newJoePerSec * timePassed, "test_SetPool::3");
+        assertEq(pendingJoe, pendingJoeBefore + newJoePerSec * timePassed, "test_SetFarm::3");
     }
 
     function test_Revert_SetPoolWhenNotOwner(address alice) public {

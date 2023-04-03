@@ -26,11 +26,11 @@ interface ISimpleRewarderPerSec is IRewarder {
     }
 
     /**
-     * @notice Info of each APTFarm poolInfo.
+     * @notice Info of each APTFarm farmInfo.
      * `accTokenPerShare` Amount of YOUR_TOKEN each LP token is worth.
-     * `lastRewardTimestamp` The last timestamp YOUR_TOKEN was rewarded to the poolInfo.
+     * `lastRewardTimestamp` The last timestamp YOUR_TOKEN was rewarded to the farmInfo.
      */
-    struct PoolInfo {
+    struct FarmInfo {
         uint256 accTokenPerShare;
         uint256 lastRewardTimestamp;
     }

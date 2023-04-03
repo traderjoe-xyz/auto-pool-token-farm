@@ -6,14 +6,14 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IE
 import {IRewarder} from "./IRewarder.sol";
 
 interface IAPTFarm {
-    error APTFarm__TokenAlreadyHasPool(address apToken);
+    error APTFarm__TokenAlreadyHasFarm(address apToken);
     error APTFarm__InsufficientDeposit(uint256 deposit, uint256 amountWithdrawn);
 
     event Add(uint256 indexed pid, uint256 allocPoint, IERC20 indexed apToken, IRewarder indexed rewarder);
     event Set(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event UpdatePool(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
+    event UpdateFarm(uint256 indexed pid, uint256 lastRewardTimestamp, uint256 lpSupply, uint256 accJoePerShare);
     event Harvest(address indexed user, uint256 indexed pid, uint256 amount, uint256 unpaidAmount);
     event BatchHarvest(address indexed user, uint256[] pids);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -32,14 +32,14 @@ interface IAPTFarm {
     }
 
     /**
-     * @notice Info of each APTFarm pool.
+     * @notice Info of each APTFarm farm.
      * `apToken` Address of the LP token.
      * `accJoePerShare` Accumulated JOE per share.
      * `lastRewardTimestamp` Last timestamp that JOE distribution occurs.
      * `joePerSec` JOE tokens distributed per second.
      * `rewarder` Address of the rewarder contract that handles the distribution of bonus tokens.
      */
-    struct PoolInfo {
+    struct FarmInfo {
         IERC20 apToken;
         uint256 accJoePerShare;
         uint256 lastRewardTimestamp;
@@ -49,13 +49,15 @@ interface IAPTFarm {
 
     function joe() external view returns (IERC20 joe);
 
-    function hasPool(IERC20 apToken) external view returns (bool hasPool);
+    function hasFarm(address apToken) external view returns (bool hasFarm);
+
+    function vaultFarmId(address apToken) external view returns (uint256 vaultFarmId);
 
     function apTokenBalances(IERC20 apToken) external view returns (uint256 apTokenBalance);
 
-    function poolLength() external view returns (uint256 poolLength);
+    function farmLength() external view returns (uint256 farmLength);
 
-    function poolInfo(uint256 pid) external view returns (PoolInfo memory poolInfo);
+    function farmInfo(uint256 pid) external view returns (FarmInfo memory farmInfo);
 
     function userInfo(uint256 pid, address user) external view returns (UserInfo memory userInfo);
 

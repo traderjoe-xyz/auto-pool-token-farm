@@ -2,6 +2,7 @@
 pragma solidity 0.8.10;
 
 import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
+import {EnumerableMap} from "openzeppelin-contracts/contracts/utils/structs/EnumerableMap.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {IERC20, IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,23 +10,24 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 import {IAPTFarm, IRewarder} from "./interfaces/IAPTFarm.sol";
 
 /**
- * @notice Unlike MasterChefJoeV3, the APTFarm contract gives out a set number of joe tokens per seconds to every pool configured
+ * @notice Unlike MasterChefJoeV3, the APTFarm contract gives out a set number of joe tokens per seconds to every farm configured
  * These Joe tokens needs to be deposited on the contract first.
  */
 contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
+    using EnumerableMap for EnumerableMap.AddressToUintMap;
     using SafeERC20 for IERC20;
 
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
     /**
-     * @notice Whether if the given token already has a pool or not.
+     * @notice Whether if the given token already has a farm or not.
      */
-    mapping(IERC20 => bool) public override hasPool;
+    EnumerableMap.AddressToUintMap private _vaultsWithFarms;
 
     /**
-     * @dev Info of each APTFarm pool.
+     * @dev Info of each individual farm.
      */
-    PoolInfo[] private _poolInfo;
+    FarmInfo[] private _farmInfo;
 
     /**
      * @dev Info of each user that stakes APT tokens.
@@ -50,24 +52,32 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @notice Returns the number of APTFarm pools.
+     * @notice Returns the number of APTFarm farms.
      */
-    function poolLength() external view override returns (uint256 pools) {
-        pools = _poolInfo.length;
+    function farmLength() external view override returns (uint256 farms) {
+        farms = _farmInfo.length;
+    }
+
+    function hasFarm(address apToken) external view override returns (bool) {
+        return _vaultsWithFarms.contains(apToken);
+    }
+
+    function vaultFarmId(address apToken) external view override returns (uint256) {
+        return _vaultsWithFarms.get(apToken);
     }
 
     /**
-     * @notice Returns informations about the pool at the given index.
-     * @param index The index of the pool.
-     * @return pool The pool informations.
+     * @notice Returns informations about the farm at the given index.
+     * @param index The index of the farm.
+     * @return farm The farm informations.
      */
-    function poolInfo(uint256 index) external view override returns (PoolInfo memory pool) {
-        pool = _poolInfo[index];
+    function farmInfo(uint256 index) external view override returns (FarmInfo memory farm) {
+        farm = _farmInfo[index];
     }
 
     /**
-     * @notice Returns informations about the user in the given pool.
-     * @param index The index of the pool.
+     * @notice Returns informations about the user in the given farm.
+     * @param index The index of the farm.
      * @param user The address of the user.
      * @return info The user informations.
      */
@@ -76,19 +86,20 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @notice Add a new APT to the pool set. Can only be called by the owner.
-     * @param joePerSec Initial number of joe tokens per second streamed to the pool.
+     * @notice Add a new APT to the farm set. Can only be called by the owner.
+     * @param joePerSec Initial number of joe tokens per second streamed to the farm.
      * @param apToken Address of the APT ERC-20 token.
      * @param rewarder Address of the rewarder delegate.
      */
     function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
-        if (hasPool[apToken]) {
-            revert APTFarm__TokenAlreadyHasPool(address(apToken));
+        uint256 newPid = _farmInfo.length;
+
+        if (!_vaultsWithFarms.set(address(apToken), newPid)) {
+            revert APTFarm__TokenAlreadyHasFarm(address(apToken));
         }
 
-        hasPool[apToken] = true;
-        _poolInfo.push(
-            PoolInfo({
+        _farmInfo.push(
+            FarmInfo({
                 apToken: apToken,
                 lastRewardTimestamp: block.timestamp,
                 accJoePerShare: 0,
@@ -104,33 +115,33 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             rewarder.onJoeReward(address(0), 0);
         }
 
-        emit Add(_poolInfo.length - 1, joePerSec, apToken, rewarder);
+        emit Add(newPid, joePerSec, apToken, rewarder);
     }
 
     /**
-     * @notice Update the given pool's joe allocation point and `IRewarder` contract. Can only be called by the owner.
-     * @param pid The index of the pool. See `_poolInfo`.
-     * @param joePerSec New joe per sec streamed to the pool.
+     * @notice Update the given farm's joe allocation point and `IRewarder` contract. Can only be called by the owner.
+     * @param pid The index of the farm. See `_farmInfo`.
+     * @param joePerSec New joe per sec streamed to the farm.
      * @param rewarder Address of the rewarder delegate.
      * @param overwrite True if _rewarder should be `set`. Otherwise `_rewarder` is ignored.
      */
     function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite) external override onlyOwner {
-        PoolInfo memory pool = _updatePool(pid);
-        pool.joePerSec = joePerSec;
+        FarmInfo memory farm = _updateFarm(pid);
+        farm.joePerSec = joePerSec;
 
         if (overwrite) {
-            pool.rewarder = rewarder;
+            farm.rewarder = rewarder;
             rewarder.onJoeReward(address(0), 0); // sanity check
         }
 
-        _poolInfo[pid] = pool;
+        _farmInfo[pid] = farm;
 
-        emit Set(pid, joePerSec, overwrite ? rewarder : pool.rewarder, overwrite);
+        emit Set(pid, joePerSec, overwrite ? rewarder : farm.rewarder, overwrite);
     }
 
     /**
      * @notice View function to see pending joe on frontend.
-     * @param pid The index of the pool. See `_poolInfo`.
+     * @param pid The index of the farm. See `_farmInfo`.
      * @param user Address of user.
      * @return pendingJoe joe reward for a given user.
      * @return bonusTokenAddress The address of the bonus reward.
@@ -148,19 +159,19 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
             uint256 pendingBonusToken
         )
     {
-        PoolInfo memory pool = _poolInfo[pid];
+        FarmInfo memory farm = _farmInfo[pid];
         UserInfo storage userInfoCached = _userInfo[pid][user];
 
-        if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 apTokenSupply = apTokenBalances[pool.apToken];
-            _refreshPoolState(pool, apTokenSupply);
+        if (block.timestamp > farm.lastRewardTimestamp) {
+            uint256 apTokenSupply = apTokenBalances[farm.apToken];
+            _refreshFarmState(farm, apTokenSupply);
         }
 
-        pendingJoe = (userInfoCached.amount * pool.accJoePerShare) / ACC_TOKEN_PRECISION - userInfoCached.rewardDebt
+        pendingJoe = (userInfoCached.amount * farm.accJoePerShare) / ACC_TOKEN_PRECISION - userInfoCached.rewardDebt
             + userInfoCached.unpaidRewards;
 
         // If it's a double reward farm, we return info about the bonus token
-        IRewarder rewarder = pool.rewarder;
+        IRewarder rewarder = farm.rewarder;
         if (address(rewarder) != address(0)) {
             bonusTokenAddress = address(rewarder.rewardToken());
             bonusTokenSymbol = IERC20Metadata(bonusTokenAddress).symbol();
@@ -170,31 +181,31 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
     /**
      * @notice Deposit APT tokens to the APTFarm for joe allocation.
-     * @param pid The index of the pool. See `_poolInfo`.
+     * @param pid The index of the farm. See `_farmInfo`.
      * @param amount APT token amount to deposit.
      */
     function deposit(uint256 pid, uint256 amount) external override nonReentrant {
-        PoolInfo memory pool = _updatePool(pid);
+        FarmInfo memory farm = _updateFarm(pid);
         UserInfo storage user = _userInfo[pid][msg.sender];
 
         (uint256 userAmountBefore, uint256 userRewardDebt, uint256 userUnpaidRewards) =
             (user.amount, user.rewardDebt, user.unpaidRewards);
 
-        uint256 balanceBefore = pool.apToken.balanceOf(address(this));
-        pool.apToken.safeTransferFrom(msg.sender, address(this), amount);
-        uint256 receivedAmount = pool.apToken.balanceOf(address(this)) - balanceBefore;
+        uint256 balanceBefore = farm.apToken.balanceOf(address(this));
+        farm.apToken.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 receivedAmount = farm.apToken.balanceOf(address(this)) - balanceBefore;
 
         uint256 userAmount = userAmountBefore + receivedAmount;
 
-        user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+        user.rewardDebt = (userAmount * farm.accJoePerShare) / ACC_TOKEN_PRECISION;
         user.amount = userAmount;
-        apTokenBalances[pool.apToken] += receivedAmount;
+        apTokenBalances[farm.apToken] += receivedAmount;
 
         if (userAmountBefore > 0 || userUnpaidRewards > 0) {
-            user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
+            user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, farm.accJoePerShare);
         }
 
-        IRewarder _rewarder = pool.rewarder;
+        IRewarder _rewarder = farm.rewarder;
         if (address(_rewarder) != address(0)) {
             _rewarder.onJoeReward(msg.sender, userAmount);
         }
@@ -204,11 +215,11 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
     /**
      * @notice Withdraw APT tokens from the APTFarm.
-     * @param pid The index of the pool. See `_poolInfo`.
+     * @param pid The index of the farm. See `_farmInfo`.
      * @param amount APT token amount to withdraw.
      */
     function withdraw(uint256 pid, uint256 amount) external override nonReentrant {
-        PoolInfo memory pool = _updatePool(pid);
+        FarmInfo memory farm = _updateFarm(pid);
         UserInfo storage user = _userInfo[pid][msg.sender];
 
         (uint256 userAmountBefore, uint256 userRewardDebt, uint256 userUnpaidRewards) =
@@ -219,69 +230,69 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         }
 
         uint256 userAmount = userAmountBefore - amount;
-        user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+        user.rewardDebt = (userAmount * farm.accJoePerShare) / ACC_TOKEN_PRECISION;
         user.amount = userAmount;
-        apTokenBalances[pool.apToken] -= amount;
+        apTokenBalances[farm.apToken] -= amount;
 
         if (userAmountBefore > 0 || userUnpaidRewards > 0) {
-            user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
+            user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, farm.accJoePerShare);
         }
 
-        IRewarder _rewarder = pool.rewarder;
+        IRewarder _rewarder = farm.rewarder;
         if (address(_rewarder) != address(0)) {
             _rewarder.onJoeReward(msg.sender, userAmount);
         }
 
-        pool.apToken.safeTransfer(msg.sender, amount);
+        farm.apToken.safeTransfer(msg.sender, amount);
 
         emit Withdraw(msg.sender, pid, amount);
     }
 
     /**
      * @notice Withdraw without caring about rewards. EMERGENCY ONLY.
-     * @param pid The index of the pool. See `_poolInfo`.
+     * @param pid The index of the farm. See `_farmInfo`.
      */
     function emergencyWithdraw(uint256 pid) external override nonReentrant {
-        PoolInfo memory pool = _poolInfo[pid];
+        FarmInfo memory farm = _farmInfo[pid];
         UserInfo storage user = _userInfo[pid][msg.sender];
 
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        apTokenBalances[pool.apToken] -= amount;
+        apTokenBalances[farm.apToken] -= amount;
 
-        IRewarder _rewarder = pool.rewarder;
+        IRewarder _rewarder = farm.rewarder;
         if (address(_rewarder) != address(0)) {
             _rewarder.onJoeReward(msg.sender, 0);
         }
 
         // Note: transfer can fail or succeed if `amount` is zero.
-        pool.apToken.safeTransfer(msg.sender, amount);
+        farm.apToken.safeTransfer(msg.sender, amount);
         emit EmergencyWithdraw(msg.sender, pid, amount);
     }
 
     /**
-     * @notice Harvest rewards from the APTFarm for all the given pools.
-     * @param pids The indices of the pools to harvest from.
+     * @notice Harvest rewards from the APTFarm for all the given farms.
+     * @param pids The indices of the farms to harvest from.
      */
     function harvestRewards(uint256[] calldata pids) external override nonReentrant {
         uint256 length = pids.length;
         for (uint256 i = 0; i < length; i++) {
             uint256 pid = pids[i];
 
-            PoolInfo memory pool = _updatePool(pid);
+            FarmInfo memory farm = _updateFarm(pid);
             UserInfo storage user = _userInfo[pid][msg.sender];
 
             (uint256 userAmount, uint256 userRewardDebt, uint256 userUnpaidRewards) =
                 (user.amount, user.rewardDebt, user.unpaidRewards);
 
-            user.rewardDebt = (userAmount * pool.accJoePerShare) / ACC_TOKEN_PRECISION;
+            user.rewardDebt = (userAmount * farm.accJoePerShare) / ACC_TOKEN_PRECISION;
 
             if (userAmount > 0 || userUnpaidRewards > 0) {
-                user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, pool.accJoePerShare);
+                user.unpaidRewards = _harvest(userAmount, userRewardDebt, userUnpaidRewards, pid, farm.accJoePerShare);
             }
 
-            IRewarder rewarder = pool.rewarder;
+            IRewarder rewarder = farm.rewarder;
             if (address(rewarder) != address(0)) {
                 rewarder.onJoeReward(msg.sender, userAmount);
             }
@@ -307,56 +318,56 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     }
 
     /**
-     * @dev Get the new pool state if time passed since last update.
-     * @dev View function that needs to be commited if effectively updating the pool.
-     * @param pool The pool to update.
-     * @param apTokenSupply The total amount of APT tokens in the pool.
+     * @dev Get the new farm state if time passed since last update.
+     * @dev View function that needs to be commited if effectively updating the farm.
+     * @param farm The farm to update.
+     * @param apTokenSupply The total amount of APT tokens in the farm.
      */
-    function _refreshPoolState(PoolInfo memory pool, uint256 apTokenSupply) internal view {
+    function _refreshFarmState(FarmInfo memory farm, uint256 apTokenSupply) internal view {
         if (apTokenSupply > 0) {
-            uint256 secondsElapsed = block.timestamp - pool.lastRewardTimestamp;
-            uint256 joeReward = secondsElapsed * pool.joePerSec;
-            pool.accJoePerShare = pool.accJoePerShare + (joeReward * ACC_TOKEN_PRECISION) / apTokenSupply;
+            uint256 secondsElapsed = block.timestamp - farm.lastRewardTimestamp;
+            uint256 joeReward = secondsElapsed * farm.joePerSec;
+            farm.accJoePerShare = farm.accJoePerShare + (joeReward * ACC_TOKEN_PRECISION) / apTokenSupply;
         }
 
-        pool.lastRewardTimestamp = block.timestamp;
+        farm.lastRewardTimestamp = block.timestamp;
     }
 
     /**
-     * @dev Updates the pool's state if time passed since last update.
-     * @dev Uses `_getNewPoolState` and commit the new pool state.
-     * @param pid The index of the pool. See `_poolInfo`.
+     * @dev Updates the farm's state if time passed since last update.
+     * @dev Uses `_getNewFarmState` and commit the new farm state.
+     * @param pid The index of the farm. See `_farmInfo`.
      */
-    function _updatePool(uint256 pid) internal returns (PoolInfo memory) {
-        PoolInfo memory pool = _poolInfo[pid];
+    function _updateFarm(uint256 pid) internal returns (FarmInfo memory) {
+        FarmInfo memory farm = _farmInfo[pid];
 
-        if (block.timestamp > pool.lastRewardTimestamp) {
-            uint256 apTokenSupply = apTokenBalances[pool.apToken];
+        if (block.timestamp > farm.lastRewardTimestamp) {
+            uint256 apTokenSupply = apTokenBalances[farm.apToken];
 
-            _refreshPoolState(pool, apTokenSupply);
-            _poolInfo[pid] = pool;
+            _refreshFarmState(farm, apTokenSupply);
+            _farmInfo[pid] = farm;
 
-            emit UpdatePool(pid, pool.lastRewardTimestamp, apTokenSupply, pool.accJoePerShare);
+            emit UpdateFarm(pid, farm.lastRewardTimestamp, apTokenSupply, farm.accJoePerShare);
         }
 
-        return pool;
+        return farm;
     }
 
     /**
-     * @dev Harvests the pending JOE rewards for the given pool.
+     * @dev Harvests the pending JOE rewards for the given farm.
      * @param userAmount The amount of APT tokens staked by the user.
      * @param userRewardDebt The reward debt of the user.
-     * @param pid The index of the pool. See `_poolInfo`.
-     * @param poolAccJoePerShare The accumulated JOE per share of the pool.
+     * @param pid The index of the farm. See `_farmInfo`.
+     * @param farmAccJoePerShare The accumulated JOE per share of the farm.
      */
     function _harvest(
         uint256 userAmount,
         uint256 userRewardDebt,
         uint256 userUnpaidRewards,
         uint256 pid,
-        uint256 poolAccJoePerShare
+        uint256 farmAccJoePerShare
     ) internal returns (uint256) {
-        uint256 pending = (userAmount * poolAccJoePerShare) / ACC_TOKEN_PRECISION - userRewardDebt + userUnpaidRewards;
+        uint256 pending = (userAmount * farmAccJoePerShare) / ACC_TOKEN_PRECISION - userRewardDebt + userUnpaidRewards;
 
         uint256 contractBalance = joe.balanceOf(address(this));
         if (contractBalance < pending) {
