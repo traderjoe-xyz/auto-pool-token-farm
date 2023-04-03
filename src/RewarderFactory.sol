@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
-import {ImmutableClone} from "joe-v2-1/libraries/ImmutableClone.sol";
 import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {ImmutableClone} from "joe-v2-1/libraries/ImmutableClone.sol";
 
-import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
+import {SimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
 import {IRewarderFactory} from "./interfaces/IRewarderFactory.sol";
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
 
