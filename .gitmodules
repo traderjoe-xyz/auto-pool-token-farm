@@ -20,4 +20,4 @@
 [submodule "lib/joe-dex-lens"]
 	path = lib/joe-dex-lens
 	url = https://github.com/traderjoe-xyz/joe-dex-lens
-	branch = new-lens
+	branch = 76dee63
