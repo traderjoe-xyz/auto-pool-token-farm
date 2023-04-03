@@ -53,13 +53,14 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarderFactory = new RewarderFactory(IAPTFarm(aptFarm));
     }
 
-    function test_DepositNative(uint256 amount) public {
+    function test_Receive(uint256 amount) public {
         deal(address(this), amount);
 
         deal(address(this), amount);
-        rewarder.depositNative{value: amount}();
+        (bool success,) = payable(rewarder).call{value: amount}("");
 
-        assertEq(address(rewarder).balance, amount, "test_Receive::1");
+        assertTrue(success, "test_Receive::1");
+        assertEq(address(rewarder).balance, amount, "test_Receive::2");
     }
 
     function test_Balance(uint256 amount) public {
@@ -73,8 +74,9 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, true);
 
         deal(address(this), amount);
-        rewarder.depositNative{value: amount}();
+        (bool success,) = payable(rewarder).call{value: amount}("");
 
+        assertTrue(success, "test_BalanceNative::0");
         assertEq(address(rewarder).balance, amount, "test_BalanceNative::1");
         assertEq(rewarder.balance(), amount, "test_BalanceNative::2");
     }
@@ -161,6 +163,11 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarderFactory.createRewarder(rewardToken, lpToken1, tokenPerSec, false);
         rewarderFactory.createRewarder(rewardToken, lpToken2, tokenPerSec, false);
         rewarderFactory.createRewarder(rewardToken, lpToken2, tokenPerSec, false);
+
+        address[] memory rewarders = rewarderFactory.getRewarders();
+        assertEq(rewarders.length, 5, "test_CreateRewardersWithSameParameters::1");
+        assertEq(rewarders[0], address(rewarder), "test_CreateRewardersWithSameParameters::2");
+        assertEq(rewarderFactory.getRewardersCount(), 5, "test_CreateRewardersWithSameParameters::3");
     }
 
     function test_SetRewardRate(uint256 oldTokenPerSec, uint256 newTokenPerSec) public {
@@ -172,5 +179,43 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarder.setRewardRate(newTokenPerSec);
 
         assertEq(rewarder.tokenPerSec(), newTokenPerSec, "test_SetRewardRate::1");
+    }
+
+    function test_Revert_CreateNewRewarderWithNoRole() public {
+        address alice = makeAddr("alice");
+
+        vm.expectRevert();
+        vm.prank(alice);
+        rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, false);
+
+        vm.expectRevert();
+        vm.prank(alice);
+        rewarderFactory.grantCreatorRole(alice);
+
+        vm.expectRevert();
+        vm.prank(alice);
+        rewarderFactory.grantRole(keccak256("REWARDER_CREATOR_ROLE"), alice);
+    }
+
+    function test_RoleManagement() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+        bytes32 role = keccak256("REWARDER_CREATOR_ROLE");
+
+        assertEq(rewarderFactory.owner(), address(this), "test_RoleManagement::1");
+        assertTrue(rewarderFactory.hasRole(role, address(this)), "test_RoleManagement::2");
+        assertFalse(rewarderFactory.hasRole(role, alice), "test_RoleManagement::3");
+
+        rewarderFactory.grantRole(role, alice);
+
+        assertTrue(rewarderFactory.hasRole(role, alice), "test_RoleManagement::4");
+
+        rewarderFactory.revokeRole(role, alice);
+
+        assertFalse(rewarderFactory.hasRole(role, alice), "test_RoleManagement::5");
+
+        rewarderFactory.grantCreatorRole(bob);
+
+        assertTrue(rewarderFactory.hasRole(role, bob), "test_RoleManagement::6");
     }
 }
