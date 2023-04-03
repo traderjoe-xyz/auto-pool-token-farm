@@ -166,7 +166,7 @@ contract APTFarmLensTest is TestHelper {
     }
 
     function test_GetAllFarms() public {
-        APTFarmLens.VaultData[] memory farmsInfo = aptFarmLens.getAllFarms();
+        APTFarmLens.VaultData[] memory farmsInfo = aptFarmLens.getAllVaultsWithFarms();
 
         assertEq(farmsInfo.length, 2, "test_GetAllFarms::1");
 
@@ -175,23 +175,23 @@ contract APTFarmLensTest is TestHelper {
     }
 
     function test_GetPaginatedFarms() public {
-        APTFarmLens.VaultData[] memory farmsData = aptFarmLens.getPaginatedFarms(0, 10);
+        APTFarmLens.VaultData[] memory farmsData = aptFarmLens.getPaginatedVaultsWithFarms(0, 10);
 
         assertEq(farmsData.length, 2, "test_GetPaginatedFarms::1");
         assertEq(address(farmsData[0].vault), oracleVault, "test_GetPaginatedFarms::2");
         assertEq(address(farmsData[1].vault), simpleVault1, "test_GetPaginatedFarms::3");
 
-        farmsData = aptFarmLens.getPaginatedFarms(1, 1);
+        farmsData = aptFarmLens.getPaginatedVaultsWithFarms(1, 1);
         assertEq(farmsData.length, 1, "test_GetPaginatedFarms::4");
         assertEq(address(farmsData[0].vault), simpleVault1, "test_GetPaginatedFarms::5");
 
-        farmsData = aptFarmLens.getPaginatedFarms(10, 2);
+        farmsData = aptFarmLens.getPaginatedVaultsWithFarms(10, 2);
         assertEq(farmsData.length, 0, "test_GetPaginatedFarms::6");
     }
 
     function test_GetAllVaultsWithUserInfo() public {
         APTFarmLens.VaultDataWithUserInfo[] memory vaultsDataWithUserInfo =
-            aptFarmLens.getAllVaultsWithUserInfo(address(this));
+            aptFarmLens.getAllVaultsIncludingUserInfo(address(this));
 
         assertEq(vaultsDataWithUserInfo.length, 3, "test_GetAllVaultsWithUserInfo::1");
 
@@ -212,7 +212,7 @@ contract APTFarmLensTest is TestHelper {
 
     function test_GetPaginatedVaultsWithUSerInfo() public {
         APTFarmLens.VaultDataWithUserInfo[] memory vaultsDataWithUserInfo =
-            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Simple, 0, 10);
+            aptFarmLens.getPaginatedVaultsIncludingUserInfo(address(this), IVaultFactory.VaultType.Simple, 0, 10);
 
         assertEq(vaultsDataWithUserInfo.length, 2, "test_GetPaginatedVaultsWithUSerInfo::1");
         assertEq(
@@ -229,7 +229,7 @@ contract APTFarmLensTest is TestHelper {
         );
 
         vaultsDataWithUserInfo =
-            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Oracle, 0, 10);
+            aptFarmLens.getPaginatedVaultsIncludingUserInfo(address(this), IVaultFactory.VaultType.Oracle, 0, 10);
 
         assertEq(vaultsDataWithUserInfo.length, 1, "test_GetPaginatedVaultsWithUSerInfo::5");
         assertEq(
@@ -237,7 +237,7 @@ contract APTFarmLensTest is TestHelper {
         );
 
         vaultsDataWithUserInfo =
-            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Simple, 1, 1);
+            aptFarmLens.getPaginatedVaultsIncludingUserInfo(address(this), IVaultFactory.VaultType.Simple, 1, 1);
 
         assertEq(vaultsDataWithUserInfo.length, 1, "test_GetPaginatedVaultsWithUSerInfo::7");
         assertEq(
@@ -245,14 +245,14 @@ contract APTFarmLensTest is TestHelper {
         );
 
         vaultsDataWithUserInfo =
-            aptFarmLens.getPaginatedVaultsWithUserInfo(address(this), IVaultFactory.VaultType.Oracle, 10, 10);
+            aptFarmLens.getPaginatedVaultsIncludingUserInfo(address(this), IVaultFactory.VaultType.Oracle, 10, 10);
 
         assertEq(vaultsDataWithUserInfo.length, 0, "test_GetPaginatedVaultsWithUSerInfo::9");
     }
 
     function test_GetAllFarmsWithUserInfo() public {
         APTFarmLens.VaultDataWithUserInfo[] memory farmsDataWithUserInfo =
-            aptFarmLens.getAllFarmsWithUserInfo(address(this));
+            aptFarmLens.getAllVaultsWithFarmsIncludingUserInfo(address(this));
 
         assertEq(farmsDataWithUserInfo.length, 2, "test_GetAllFarmsWithUserInfo::1");
 
@@ -269,7 +269,7 @@ contract APTFarmLensTest is TestHelper {
 
     function test_GetPaginatedFarmsWithUserInfo() public {
         APTFarmLens.VaultDataWithUserInfo[] memory farmsDataWithUserInfo =
-            aptFarmLens.getPaginatedFarmsWithUserInfo(address(this), 0, 10);
+            aptFarmLens.getPaginatedVaultsWithFarmsIncludingUserInfo(address(this), 0, 10);
 
         assertEq(farmsDataWithUserInfo.length, 2, "test_GetPaginatedFarmsWithUserInfo::1");
         assertEq(
@@ -300,14 +300,14 @@ contract APTFarmLensTest is TestHelper {
             "test_GetPaginatedFarmsWithUserInfo::7"
         );
 
-        farmsDataWithUserInfo = aptFarmLens.getPaginatedFarmsWithUserInfo(address(this), 1, 1);
+        farmsDataWithUserInfo = aptFarmLens.getPaginatedVaultsWithFarmsIncludingUserInfo(address(this), 1, 1);
 
         assertEq(farmsDataWithUserInfo.length, 1, "test_GetPaginatedFarmsWithUserInfo::8");
         assertEq(
             address(farmsDataWithUserInfo[0].vaultData.vault), simpleVault1, "test_GetPaginatedFarmsWithUserInfo::9"
         );
 
-        farmsDataWithUserInfo = aptFarmLens.getPaginatedFarmsWithUserInfo(address(this), 10, 10);
+        farmsDataWithUserInfo = aptFarmLens.getPaginatedVaultsWithFarmsIncludingUserInfo(address(this), 10, 10);
 
         assertEq(farmsDataWithUserInfo.length, 0, "test_GetPaginatedFarmsWithUserInfo::10");
     }

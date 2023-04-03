@@ -65,8 +65,8 @@ contract APTFarmLens is IAPTFarmLens {
      * @notice Returns data for every vault that has a farm
      * @return farmsData The vault data array for every vault that has a farm
      */
-    function getAllFarms() external view override returns (VaultData[] memory farmsData) {
-        farmsData = _getAllFarms();
+    function getAllVaultsWithFarms() external view override returns (VaultData[] memory farmsData) {
+        farmsData = _getAllVaultsWithFarms();
     }
 
     /**
@@ -75,13 +75,13 @@ contract APTFarmLens is IAPTFarmLens {
      * @param pageSize The amount of vaults to get
      * @return farmsData The vault data array for every vault that has a farm
      */
-    function getPaginatedFarms(uint256 startId, uint256 pageSize)
+    function getPaginatedVaultsWithFarms(uint256 startId, uint256 pageSize)
         external
         view
         override
         returns (VaultData[] memory farmsData)
     {
-        farmsData = _getFarms(startId, pageSize);
+        farmsData = _getVaultsWithFarms(startId, pageSize);
     }
 
     /**
@@ -89,7 +89,7 @@ contract APTFarmLens is IAPTFarmLens {
      * @param user The user's address
      * @return vaultsDataWithUserInfo The vault data array with the user's info
      */
-    function getAllVaultsWithUserInfo(address user)
+    function getAllVaultsIncludingUserInfo(address user)
         external
         view
         override
@@ -112,7 +112,7 @@ contract APTFarmLens is IAPTFarmLens {
      * @return vaultsDataWithUserInfo The vault data array with the user's info
      */
 
-    function getPaginatedVaultsWithUserInfo(
+    function getPaginatedVaultsIncludingUserInfo(
         address user,
         IVaultFactory.VaultType vaultType,
         uint256 startId,
@@ -132,13 +132,13 @@ contract APTFarmLens is IAPTFarmLens {
      * @param user The user's address
      * @return farmsDataWithUserInfo The vault data array with the user's info
      */
-    function getAllFarmsWithUserInfo(address user)
+    function getAllVaultsWithFarmsIncludingUserInfo(address user)
         external
         view
         override
         returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo)
     {
-        VaultData[] memory farmsData = _getAllFarms();
+        VaultData[] memory farmsData = _getAllVaultsWithFarms();
 
         farmsDataWithUserInfo = new VaultDataWithUserInfo[](farmsData.length);
 
@@ -154,13 +154,13 @@ contract APTFarmLens is IAPTFarmLens {
      * @param pageSize The amount of vaults to get
      * @return farmsDataWithUserInfo The vault data array with the user's info
      */
-    function getPaginatedFarmsWithUserInfo(address user, uint256 startId, uint256 pageSize)
+    function getPaginatedVaultsWithFarmsIncludingUserInfo(address user, uint256 startId, uint256 pageSize)
         external
         view
         override
         returns (VaultDataWithUserInfo[] memory farmsDataWithUserInfo)
     {
-        VaultData[] memory farmsData = _getFarms(startId, pageSize);
+        VaultData[] memory farmsData = _getVaultsWithFarms(startId, pageSize);
 
         farmsDataWithUserInfo = new VaultDataWithUserInfo[](farmsData.length);
 
@@ -322,8 +322,8 @@ contract APTFarmLens is IAPTFarmLens {
      * @dev Gets the farm data for every vault that has a farm
      * @return farmsData The farm data array
      */
-    function _getAllFarms() internal view returns (VaultData[] memory farmsData) {
-        farmsData = _getFarms(0, type(uint256).max);
+    function _getAllVaultsWithFarms() internal view returns (VaultData[] memory farmsData) {
+        farmsData = _getVaultsWithFarms(0, type(uint256).max);
     }
 
     /**
@@ -332,7 +332,11 @@ contract APTFarmLens is IAPTFarmLens {
      * @param pageSize The amount of farms to get
      * @return farmsData The farm data array
      */
-    function _getFarms(uint256 startId, uint256 pageSize) internal view returns (VaultData[] memory farmsData) {
+    function _getVaultsWithFarms(uint256 startId, uint256 pageSize)
+        internal
+        view
+        returns (VaultData[] memory farmsData)
+    {
         uint256 totalFarms = aptFarm.farmLength();
 
         if (startId >= totalFarms) {
