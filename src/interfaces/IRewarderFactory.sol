@@ -20,6 +20,8 @@ interface IRewarderFactory {
 
     function rewarders(uint256 index) external view returns (address rewarder);
 
+    function getRewardersCount() external view returns (uint256 rewarderCount);
+
     function getRewarders() external view returns (address[] memory rewarders);
 
     function createRewarder(IERC20 rewardToken, IERC20 apToken, uint256 tokenPerSec, bool isNative)

@@ -50,6 +50,14 @@ contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
     }
 
     /**
+     * @notice Gets the number of existing rewarders.
+     * @return The number of existing rewarders.
+     */
+    function getRewardersCount() external view override returns (uint256) {
+        return rewarders.length;
+    }
+
+    /**
      * @notice Returns the list of rewarders created by this factory.
      * @return The list of rewarders created by this factory.
      */

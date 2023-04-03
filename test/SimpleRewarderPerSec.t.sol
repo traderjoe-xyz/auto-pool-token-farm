@@ -167,6 +167,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
         address[] memory rewarders = rewarderFactory.getRewarders();
         assertEq(rewarders.length, 5, "test_CreateRewardersWithSameParameters::1");
         assertEq(rewarders[0], address(rewarder), "test_CreateRewardersWithSameParameters::2");
+        assertEq(rewarderFactory.getRewardersCount(), 5, "test_CreateRewardersWithSameParameters::3");
     }
 
     function test_SetRewardRate(uint256 oldTokenPerSec, uint256 newTokenPerSec) public {
