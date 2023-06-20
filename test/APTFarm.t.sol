@@ -142,7 +142,7 @@ contract APTFarmTest is TestHelper {
         depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
         joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);
         amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
-        amountWithdrawn = bound(amountWithdrawn, 0, amountDeposited);
+        amountWithdrawn = bound(amountWithdrawn, 1, amountDeposited);
 
         _add(lpToken1, joePerSec);
         _deposit(0, amountDeposited);
@@ -220,7 +220,10 @@ contract APTFarmTest is TestHelper {
 
         deal(address(joe), address(aptFarm), pendingRewards);
 
-        aptFarm.deposit(0, 0);
+        uint256[] memory pids = new uint256[](1);
+        pids[0] = 0;
+
+        aptFarm.harvestRewards(pids);
 
         (pendingRewardsAfter,,,) = aptFarm.pendingTokens(0, address(this));
         assertEq(pendingRewardsAfter, 0, "test_InsufficientRewardsOnTheContract::4");
