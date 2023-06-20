@@ -151,6 +151,9 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         FarmInfo memory farm = farmInfo;
         UserInfo storage user = userInfo[_user];
 
+        user.amount = _aptAmount;
+        user.rewardDebt = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
+
         uint256 pending;
         if (user.amount > 0) {
             pending = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
@@ -158,25 +161,23 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
             uint256 rewardBalance = _balance();
             if (_isNative()) {
                 if (pending > rewardBalance) {
-                    _transferNative(_user, rewardBalance);
                     user.unpaidRewards = pending - rewardBalance;
+                    _transferNative(_user, rewardBalance);
                 } else {
-                    _transferNative(_user, pending);
                     user.unpaidRewards = 0;
+                    _transferNative(_user, pending);
                 }
             } else {
                 if (pending > rewardBalance) {
-                    _rewardToken().safeTransfer(_user, rewardBalance);
                     user.unpaidRewards = pending - rewardBalance;
+                    _rewardToken().safeTransfer(_user, rewardBalance);
                 } else {
-                    _rewardToken().safeTransfer(_user, pending);
                     user.unpaidRewards = 0;
+                    _rewardToken().safeTransfer(_user, pending);
                 }
             }
         }
 
-        user.amount = _aptAmount;
-        user.rewardDebt = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
         emit OnReward(_user, pending - user.unpaidRewards);
     }
 
