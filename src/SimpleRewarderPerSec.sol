@@ -288,18 +288,34 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
+    /**
+     * @dev Returns the address of the reward token.
+     * @return Address of the reward token
+     */
     function _rewardToken() internal pure returns (IERC20) {
         return IERC20(_getArgAddress(0));
     }
 
+    /**
+     * @dev Returns the address of the wrapped native token.
+     * @return Address of the wrapped native token
+     */
     function _apToken() internal pure returns (IERC20) {
         return IERC20(_getArgAddress(20));
     }
 
+    /**
+     * @dev Returns the address of the APT Farm.
+     * @return Address of the APT Farm
+     */
     function _aptFarm() internal pure returns (IAPTFarm) {
         return IAPTFarm(_getArgAddress(40));
     }
 
+    /**
+     * @dev Returns true if the reward token is native.
+     * @return True if the reward token is native
+     */
     function _isNative() internal pure returns (bool) {
         return _getArgUint8(60) > 0;
     }

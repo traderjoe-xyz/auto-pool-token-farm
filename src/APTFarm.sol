@@ -48,6 +48,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
     /**
      * @dev joePerSec is limited to 100 tokens per second to avoid overflow issues
+     * @param joePerSec The amount of joe tokens that will be given per second.
      */
     modifier validateJoePerSec(uint256 joePerSec) {
         if (joePerSec > MAX_JOE_PER_SEC) {
@@ -56,6 +57,10 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         _;
     }
 
+    /**
+     * @dev Checks if the given amount is not zero.
+     * @param amount The amount to validate.
+     */
     modifier nonZeroAmount(uint256 amount) {
         if (amount == 0) {
             revert APTFarm__ZeroAmount();
@@ -63,6 +68,10 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         _;
     }
 
+    /**
+     * @dev Checks if the given array is not empty.
+     * @param array The uint256 array to validate.
+     */
     modifier validateArrayLength(uint256[] calldata array) {
         if (array.length == 0) {
             revert APTFarm__EmptyArray();
@@ -88,10 +97,18 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         farms = _farmInfo.length;
     }
 
+    /**
+     * @notice Returns true if the given APT token has a farm.
+     * @param apToken Address of the APT ERC-20 token.
+     */
     function hasFarm(address apToken) external view override returns (bool) {
         return _vaultsWithFarms.contains(apToken);
     }
 
+    /**
+     * @notice Returns the farm id of the given APT token.
+     * @param apToken Address of the APT ERC-20 token.
+     */
     function vaultFarmId(address apToken) external view override returns (uint256) {
         return _vaultsWithFarms.get(apToken);
     }
