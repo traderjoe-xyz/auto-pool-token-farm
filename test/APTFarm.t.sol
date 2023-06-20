@@ -63,6 +63,11 @@ contract APTFarmTest is TestHelper {
         aptFarm.add(1, IERC20(lpToken1), IRewarder(address(0)));
     }
 
+    function test_Revert_AddJoeFarm() public {
+        vm.expectRevert(abi.encodeWithSelector(IAPTFarm.APTFarm__InvalidAPToken.selector));
+        aptFarm.add(1, joe, IRewarder(address(0)));
+    }
+
     function test_Deposit(uint256 joePerSec, uint256 amountDeposited, uint256 depositTime) public {
         depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
         joePerSec = bound(joePerSec, joePerSecLowerBound, joePerSecUpperBound);

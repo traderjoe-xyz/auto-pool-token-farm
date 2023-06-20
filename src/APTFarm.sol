@@ -92,6 +92,10 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param rewarder Address of the rewarder delegate.
      */
     function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
+        if (address(apToken) == address(joe)) {
+            revert APTFarm__InvalidAPToken();
+        }
+
         uint256 newPid = _farmInfo.length;
 
         if (!_vaultsWithFarms.set(address(apToken), newPid)) {
