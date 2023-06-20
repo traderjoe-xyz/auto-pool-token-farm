@@ -56,6 +56,20 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         _;
     }
 
+    modifier nonZeroAmount(uint256 amount) {
+        if (amount == 0) {
+            revert APTFarm__ZeroAmount();
+        }
+        _;
+    }
+
+    modifier validateArrayLength(uint256[] calldata array) {
+        if (array.length == 0) {
+            revert APTFarm__EmptyArray();
+        }
+        _;
+    }
+
     /**
      * @param _joe The joe token contract address.
      */
@@ -217,7 +231,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param pid The index of the farm. See `_farmInfo`.
      * @param amount APT token amount to deposit.
      */
-    function deposit(uint256 pid, uint256 amount) external override nonReentrant {
+    function deposit(uint256 pid, uint256 amount) external override nonReentrant nonZeroAmount(amount) {
         FarmInfo memory farm = _updateFarm(pid);
         UserInfo storage user = _userInfo[pid][msg.sender];
 
@@ -251,7 +265,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param pid The index of the farm. See `_farmInfo`.
      * @param amount APT token amount to withdraw.
      */
-    function withdraw(uint256 pid, uint256 amount) external override nonReentrant {
+    function withdraw(uint256 pid, uint256 amount) external override nonReentrant nonZeroAmount(amount) {
         FarmInfo memory farm = _updateFarm(pid);
         UserInfo storage user = _userInfo[pid][msg.sender];
 
@@ -308,7 +322,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @notice Harvest rewards from the APTFarm for all the given farms.
      * @param pids The indices of the farms to harvest from.
      */
-    function harvestRewards(uint256[] calldata pids) external override nonReentrant {
+    function harvestRewards(uint256[] calldata pids) external override nonReentrant validateArrayLength(pids) {
         uint256 length = pids.length;
         for (uint256 i = 0; i < length; i++) {
             uint256 pid = pids[i];
