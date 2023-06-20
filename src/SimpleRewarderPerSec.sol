@@ -149,12 +149,16 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         FarmInfo memory farm = _updateFarm();
         UserInfo storage user = userInfo[_user];
 
+        uint256 previousUserAmount = user.amount;
+        uint256 previousUserRewardDebt = user.rewardDebt;
+
         user.amount = _aptAmount;
         user.rewardDebt = (_aptAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
 
         uint256 pending;
-        if (_aptAmount > 0) {
-            pending = (_aptAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
+        if (previousUserAmount > 0) {
+            pending = (previousUserAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - previousUserRewardDebt
+                + user.unpaidRewards;
 
             uint256 rewardBalance = _balance();
             if (_isNative()) {
