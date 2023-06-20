@@ -90,7 +90,7 @@ contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
         onlyRole(REWARDER_CREATOR_ROLE)
         returns (SimpleRewarderPerSec rewarder)
     {
-        if (!Address.isContract(address(rewardToken)) || !Address.isContract(address(apToken))) {
+        if ((!isNative && !Address.isContract(address(rewardToken))) || !Address.isContract(address(apToken))) {
             revert RewarderFactory__InvalidAddress();
         }
 
