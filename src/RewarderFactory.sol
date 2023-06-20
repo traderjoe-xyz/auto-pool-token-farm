@@ -96,12 +96,12 @@ contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
 
         address rewarderAddress = ImmutableClone.cloneDeterministic(
             simpleRewarderImplementation,
-            abi.encodePacked(rewardToken, apToken, aptFarm, isNative),
+            abi.encodePacked(rewardToken, apToken, aptFarm, wNative, isNative),
             keccak256(abi.encode(_nounce++))
         );
 
         rewarder = SimpleRewarderPerSec(payable(rewarderAddress));
-        rewarder.initialize(tokenPerSec, wNative, msg.sender);
+        rewarder.initialize(tokenPerSec, msg.sender);
         rewarders.push(rewarderAddress);
 
         emit RewarderCreated(rewarderAddress, address(rewardToken), address(apToken), isNative, msg.sender);

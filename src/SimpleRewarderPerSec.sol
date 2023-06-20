@@ -36,8 +36,6 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
 
     uint256 public override tokenPerSec;
 
-    IWrappedNative public override wNative;
-
     /**
      * Given the fraction, tokenReward * ACC_TOKEN_PRECISION / aptSupply, we consider
      * several edge cases.
@@ -83,7 +81,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         _disableInitializers();
     }
 
-    function initialize(uint256 _tokenPerSec, IWrappedNative _wNative, address _owner) external initializer {
+    function initialize(uint256 _tokenPerSec, address _owner) external initializer {
         if (_tokenPerSec > 1e30) {
             revert SimpleRewarderPerSec__InvalidTokenPerSec();
         }
@@ -92,7 +90,6 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         __ReentrancyGuard_init();
 
         tokenPerSec = _tokenPerSec;
-        wNative = _wNative;
         farmInfo = FarmInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
 
         _transferOwnership(_owner);
@@ -117,6 +114,13 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      */
     function aptFarm() external pure override returns (IAPTFarm) {
         return _aptFarm();
+    }
+
+    /**
+     * @notice Wrapped native token.
+     */
+    function wNative() external pure override returns (IWrappedNative) {
+        return _wNative();
     }
 
     /**
@@ -283,8 +287,8 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     function _transferNative(address to, uint256 amount) internal {
         (bool success,) = to.call{value: amount}("");
         if (!success) {
-            wNative.deposit{value: amount}();
-            IERC20(wNative).safeTransfer(to, amount);
+            _wNative().deposit{value: amount}();
+            IERC20(_wNative()).safeTransfer(to, amount);
         }
     }
 
@@ -313,10 +317,18 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
+     * @dev Returns the address of the wrapped native token.
+     * @return Address of the wrapped native token
+     */
+    function _wNative() internal pure returns (IWrappedNative) {
+        return IWrappedNative(_getArgAddress(60));
+    }
+
+    /**
      * @dev Returns true if the reward token is native.
      * @return True if the reward token is native
      */
     function _isNative() internal pure returns (bool) {
-        return _getArgUint8(60) > 0;
+        return _getArgUint8(80) > 0;
     }
 }

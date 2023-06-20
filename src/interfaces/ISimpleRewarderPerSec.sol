@@ -37,13 +37,13 @@ interface ISimpleRewarderPerSec is IRewarder {
 
     function apToken() external view returns (IERC20);
 
+    function aptFarm() external view returns (IAPTFarm);
+
     function wNative() external view returns (IWrappedNative);
 
     function isNative() external view returns (bool);
 
-    function aptFarm() external view returns (IAPTFarm);
-
     function tokenPerSec() external view returns (uint256);
 
-    function initialize(uint256 tokenPerSec, IWrappedNative _wNative, address owner) external;
+    function initialize(uint256 tokenPerSec, address owner) external;
 }
