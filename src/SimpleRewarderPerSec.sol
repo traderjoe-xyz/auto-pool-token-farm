@@ -19,7 +19,7 @@ import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
  *
  * It assumes no minting rights, so requires a set amount of YOUR_TOKEN to be transferred to this contract prior.
  * E.g. say you've allocated 100,000 XYZ to the JOE-XYZ farm over 30 days. Then you would need to transfer
- * 100,000 XYZ and set the block reward accordingly so it's fully distributed after 30 days.
+ * 100,000 XYZ and set the reward per sec accordingly so it's fully distributed after 30 days.
  *
  *
  * Issue with the previous version is that this fraction, `tokenReward*(ACC_TOKEN_PRECISION)/(aptSupply)`,
@@ -146,17 +146,15 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @param _aptAmount Number of LP tokens the user has
      */
     function onJoeReward(address _user, uint256 _aptAmount) external override onlyAPTFarm nonReentrant {
-        _updateFarm();
-
-        FarmInfo memory farm = farmInfo;
+        FarmInfo memory farm = _updateFarm();
         UserInfo storage user = userInfo[_user];
 
         user.amount = _aptAmount;
-        user.rewardDebt = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
+        user.rewardDebt = (_aptAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
 
         uint256 pending;
-        if (user.amount > 0) {
-            pending = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
+        if (_aptAmount > 0) {
+            pending = (_aptAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
 
             uint256 rewardBalance = _balance();
             if (_isNative()) {
@@ -239,7 +237,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * withdrawal of remaining tokens.
      * @param token Address of token to withdraw
      */
-    function emergencyWithdraw(address token) public onlyOwner {
+    function emergencyWithdraw(address token) external onlyOwner {
         if (token == address(0)) {
             _transferNative(msg.sender, address(this).balance);
         } else {
