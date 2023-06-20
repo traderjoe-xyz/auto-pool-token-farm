@@ -250,7 +250,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         farm = farmInfo;
 
         if (block.timestamp > farm.lastRewardTimestamp) {
-            uint256 aptSupply = _apToken().balanceOf(address(_aptFarm()));
+            uint256 aptSupply = _aptFarm().apTokenBalances(_apToken());
 
             if (aptSupply > 0) {
                 uint256 timeElapsed = block.timestamp - farm.lastRewardTimestamp;
