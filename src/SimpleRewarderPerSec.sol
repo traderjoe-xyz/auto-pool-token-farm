@@ -221,6 +221,10 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @param _tokenPerSec The number of tokens to distribute per second
      */
     function setRewardRate(uint256 _tokenPerSec) external onlyOwner {
+        if (_tokenPerSec > 1e30) {
+            revert SimpleRewarderPerSec__InvalidTokenPerSec();
+        }
+
         _updateFarm();
 
         uint256 oldRate = tokenPerSec;
