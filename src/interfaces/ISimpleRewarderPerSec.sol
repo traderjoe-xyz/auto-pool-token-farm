@@ -5,10 +5,10 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import {IAPTFarm} from "./IAPTFarm.sol";
 import {IRewarder} from "./IRewarder.sol";
+import {IWrappedNative} from "./IWrappedNative.sol";
 
 interface ISimpleRewarderPerSec is IRewarder {
     error SimpleRewarderPerSec__OnlyAPTFarm();
-    error SimpleRewarderPerSec__TransferFailed();
     error SimpleRewarderPerSec__InvalidTokenPerSec();
 
     event OnReward(address indexed user, uint256 amount);
@@ -37,11 +37,13 @@ interface ISimpleRewarderPerSec is IRewarder {
 
     function apToken() external view returns (IERC20);
 
+    function wNative() external view returns (IWrappedNative);
+
     function isNative() external view returns (bool);
 
     function aptFarm() external view returns (IAPTFarm);
 
     function tokenPerSec() external view returns (uint256);
 
-    function initialize(uint256 tokenPerSec, address owner) external;
+    function initialize(uint256 tokenPerSec, IWrappedNative _wNative, address owner) external;
 }

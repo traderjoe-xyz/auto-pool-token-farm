@@ -10,6 +10,7 @@ import {ReentrancyGuardUpgradeable} from
 import {Clone} from "joe-v2-1/libraries/Clone.sol";
 
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
+import {IWrappedNative} from "./interfaces/IWrappedNative.sol";
 import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
 
 /**
@@ -34,6 +35,8 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     using SafeERC20 for IERC20;
 
     uint256 public override tokenPerSec;
+
+    IWrappedNative public override wNative;
 
     /**
      * Given the fraction, tokenReward * ACC_TOKEN_PRECISION / aptSupply, we consider
@@ -80,7 +83,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         _disableInitializers();
     }
 
-    function initialize(uint256 _tokenPerSec, address _owner) external initializer {
+    function initialize(uint256 _tokenPerSec, IWrappedNative _wNative, address _owner) external initializer {
         if (_tokenPerSec > 1e30) {
             revert SimpleRewarderPerSec__InvalidTokenPerSec();
         }
@@ -89,6 +92,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         __ReentrancyGuard_init();
 
         tokenPerSec = _tokenPerSec;
+        wNative = _wNative;
         farmInfo = FarmInfo({lastRewardTimestamp: block.timestamp, accTokenPerShare: 0});
 
         _transferOwnership(_owner);
@@ -263,10 +267,17 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
+    /**
+     * @dev Sends native tokens to recipient.
+     * @dev Native rewards will be wrapped into wNative if the staker can't receive native tokens.
+     * @param to Recipient of the transfer
+     * @param amount Amount to transfer
+     */
     function _transferNative(address to, uint256 amount) internal {
         (bool success,) = to.call{value: amount}("");
         if (!success) {
-            revert SimpleRewarderPerSec__TransferFailed();
+            wNative.deposit{value: amount}();
+            IERC20(wNative).safeTransfer(to, amount);
         }
     }
 

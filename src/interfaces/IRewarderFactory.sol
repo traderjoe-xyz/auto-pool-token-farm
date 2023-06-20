@@ -4,6 +4,7 @@ pragma solidity 0.8.10;
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 import {IAPTFarm} from "./IAPTFarm.sol";
+import {IWrappedNative} from "./IWrappedNative.sol";
 import {SimpleRewarderPerSec} from "../SimpleRewarderPerSec.sol";
 
 interface IRewarderFactory {
@@ -17,6 +18,8 @@ interface IRewarderFactory {
     function simpleRewarderImplementation() external view returns (address simpleRewarderImplementation);
 
     function aptFarm() external view returns (IAPTFarm aptFarm);
+
+    function wNative() external view returns (IWrappedNative);
 
     function rewarders(uint256 index) external view returns (address rewarder);
 
