@@ -25,6 +25,9 @@ contract APTFarmTest is TestHelper {
     }
 
     function test_AddFarm(uint256 joePerSec1, uint256 joePerSec2) public {
+        joePerSec1 = bound(joePerSec1, joePerSecLowerBound, joePerSecUpperBound);
+        joePerSec2 = bound(joePerSec2, joePerSecLowerBound, joePerSecUpperBound);
+
         vm.expectEmit();
         emit Add(0, joePerSec1, IERC20(lpToken1), IRewarder(address(0)));
         aptFarm.add(joePerSec1, IERC20(lpToken1), IRewarder(address(0)));
@@ -66,6 +69,11 @@ contract APTFarmTest is TestHelper {
     function test_Revert_AddJoeFarm() public {
         vm.expectRevert(abi.encodeWithSelector(IAPTFarm.APTFarm__InvalidAPToken.selector));
         aptFarm.add(1, joe, IRewarder(address(0)));
+    }
+
+    function test_Revert_InvalidJoePerSec() public {
+        vm.expectRevert(abi.encodeWithSelector(IAPTFarm.APTFarm__InvalidJoePerSec.selector));
+        aptFarm.add(joePerSecUpperBound + 1, IERC20(lpToken1), IRewarder(address(0)));
     }
 
     function test_Deposit(uint256 joePerSec, uint256 amountDeposited, uint256 depositTime) public {
@@ -253,6 +261,11 @@ contract APTFarmTest is TestHelper {
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(alice);
         aptFarm.set(0, 1, IRewarder(address(0)), false);
+    }
+
+    function test_Revert_SetInvalidJoePerSec() public {
+        vm.expectRevert(IAPTFarm.APTFarm__InvalidJoePerSec.selector);
+        aptFarm.set(0, joePerSecUpperBound + 1, IRewarder(address(0)), false);
     }
 
     function test_EmergencyWithdraw(uint256 joePerSec, uint256 amountDeposited, uint256 depositTime) public {

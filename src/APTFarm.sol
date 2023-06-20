@@ -19,6 +19,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
+    uint256 private constant MAX_JOE_PER_SEC = 100e18;
+
     /**
      * @notice Whether if the given token already has a farm or not.
      */
@@ -43,6 +45,16 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @notice Accounted balances of AP tokens in the farm.
      */
     mapping(IERC20 => uint256) public override apTokenBalances;
+
+    /**
+     * @dev joePerSec is limited to 100 tokens per second to avoid overflow issues
+     */
+    modifier validateJoePerSec(uint256 joePerSec) {
+        if (joePerSec > MAX_JOE_PER_SEC) {
+            revert APTFarm__InvalidJoePerSec();
+        }
+        _;
+    }
 
     /**
      * @param _joe The joe token contract address.
@@ -91,7 +103,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param apToken Address of the APT ERC-20 token.
      * @param rewarder Address of the rewarder delegate.
      */
-    function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
+    function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder)
+        external
+        override
+        onlyOwner
+        validateJoePerSec(joePerSec)
+    {
         if (address(apToken) == address(joe)) {
             revert APTFarm__InvalidAPToken();
         }
@@ -129,7 +146,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param rewarder Address of the rewarder delegate.
      * @param overwrite True if _rewarder should be `set`. Otherwise `_rewarder` is ignored.
      */
-    function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite) external override onlyOwner {
+    function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite)
+        external
+        override
+        onlyOwner
+        validateJoePerSec(joePerSec)
+    {
         FarmInfo memory farm = _updateFarm(pid);
         farm.joePerSec = joePerSec;
 
