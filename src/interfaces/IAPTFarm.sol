@@ -9,6 +9,7 @@ interface IAPTFarm {
     error APTFarm__InvalidAPToken();
     error APTFarm__ZeroAmount();
     error APTFarm__EmptyArray();
+    error APTFarm__ZeroAddress();
     error APTFarm__InvalidJoePerSec();
     error APTFarm__InvalidFarmIndex();
     error APTFarm__TokenAlreadyHasFarm(address apToken);

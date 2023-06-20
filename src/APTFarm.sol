@@ -74,6 +74,10 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param _joe The joe token contract address.
      */
     constructor(IERC20 _joe) {
+        if (address(_joe) == address(0)) {
+            revert APTFarm__ZeroAddress();
+        }
+
         joe = _joe;
     }
 
