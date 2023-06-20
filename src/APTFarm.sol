@@ -367,6 +367,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     function _updateFarm(uint256 pid) internal returns (FarmInfo memory) {
         FarmInfo memory farm = _farmInfo[pid];
 
+        if (farm.lastRewardTimestamp == 0) revert APTFarm__InvalidFarmIndex();
+
         if (block.timestamp > farm.lastRewardTimestamp) {
             uint256 apTokenSupply = apTokenBalances[farm.apToken];
 

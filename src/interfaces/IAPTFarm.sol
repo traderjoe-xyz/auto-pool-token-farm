@@ -8,6 +8,7 @@ import {IRewarder} from "./IRewarder.sol";
 interface IAPTFarm {
     error APTFarm__InvalidAPToken();
     error APTFarm__InvalidJoePerSec();
+    error APTFarm__InvalidFarmIndex();
     error APTFarm__TokenAlreadyHasFarm(address apToken);
     error APTFarm__InsufficientDeposit(uint256 deposit, uint256 amountWithdrawn);
 
