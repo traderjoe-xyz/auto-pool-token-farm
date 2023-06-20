@@ -200,7 +200,14 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         IRewarder rewarder = farm.rewarder;
         if (address(rewarder) != address(0)) {
             bonusTokenAddress = address(rewarder.rewardToken());
-            bonusTokenSymbol = IERC20Metadata(bonusTokenAddress).symbol();
+
+            (bool success, bytes memory data) =
+                bonusTokenAddress.staticcall(abi.encodeWithSelector(IERC20Metadata.symbol.selector));
+
+            if (success && data.length > 0) {
+                bonusTokenSymbol = abi.decode(data, (string));
+            }
+
             pendingBonusToken = rewarder.pendingTokens(user);
         }
     }

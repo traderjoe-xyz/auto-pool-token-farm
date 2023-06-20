@@ -161,7 +161,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
         amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
 
         // TODO: change rewardToken address to wNative
-        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, tokenPerSec, true);
+        rewarder = rewarderFactory.createRewarder(IERC20(address(0)), lpToken1, tokenPerSec, true);
 
         deal(address(rewarder), 1e50);
         _add(lpToken1, 1e18, rewarder);
@@ -208,8 +208,8 @@ contract SimpleRewarderPerSecTest is TestHelper {
             aptFarm.pendingTokens(0, address(this));
 
         assertApproxEqRel(pendingBonusToken, rewards, expectedPrecision, "test_OnReward::9");
-        assertEq(bonusTokenAddress, address(rewardToken), "test_OnReward::10");
-        assertEq(bonusTokenSymbol, "ERC20Mock", "test_OnReward::11");
+        assertEq(bonusTokenAddress, address(0), "test_OnReward::10");
+        assertEq(bonusTokenSymbol, "", "test_OnReward::11");
 
         uint256[] memory pids = new uint256[](1);
         pids[0] = 0;
