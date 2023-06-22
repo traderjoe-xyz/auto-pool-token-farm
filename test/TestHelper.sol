@@ -18,13 +18,16 @@ import {SimpleRewarderPerSec, ISimpleRewarderPerSec} from "src/SimpleRewarderPer
 import {RewarderFactory, IRewarderFactory} from "src/RewarderFactory.sol";
 import {APTFarmLens} from "src/APTFarmLens.sol";
 import {IRewarder} from "src/interfaces/IRewarder.sol";
+import {IWrappedNative} from "src/interfaces/IWrappedNative.sol";
 import {ERC20Mock} from "./mocks/ERC20.sol";
+import {WrappedNative} from "./mocks/WrappedNative.sol";
 
 abstract contract TestHelper is Test {
     APTFarm aptFarm;
     RewarderFactory rewarderFactory;
     SimpleRewarderPerSec rewarder;
     ERC20Mock joe;
+    WrappedNative wNative;
 
     ERC20Mock lpToken1;
     ERC20Mock lpToken2;
@@ -65,8 +68,10 @@ abstract contract TestHelper is Test {
         tokenY1 = new ERC20Mock(18);
         tokenY2 = new ERC20Mock(18);
 
+        wNative = new WrappedNative();
+
         aptFarm = new APTFarm(joe);
-        rewarderFactory = new RewarderFactory(aptFarm);
+        rewarderFactory = new RewarderFactory(aptFarm,IWrappedNative(address(wNative)) );
         rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, 1e18, false);
 
         vm.label(address(joe), "joe");
@@ -79,6 +84,7 @@ abstract contract TestHelper is Test {
         vm.label(address(tokenX3), "tokenX3");
         vm.label(address(tokenY1), "tokenY1");
         vm.label(address(tokenY2), "tokenY2");
+        vm.label(address(wNative), "wNative");
         vm.label(address(aptFarm), "aptFarm");
         vm.label(address(rewarder), "rewarder");
 

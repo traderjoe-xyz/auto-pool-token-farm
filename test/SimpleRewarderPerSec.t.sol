@@ -7,6 +7,9 @@ contract SimpleRewarderPerSecTest is TestHelper {
     event OnReward(address indexed user, uint256 amount);
     event RewardRateUpdated(uint256 oldRate, uint256 newRate);
 
+    bool blockReceive;
+    uint256 nativeReceived;
+
     using stdStorage for StdStorage;
 
     function test_Deploy(uint256 tokenPerSec) public {
@@ -21,7 +24,7 @@ contract SimpleRewarderPerSecTest is TestHelper {
         assertFalse(rewarder.isNative(), "test_Deploy::6");
         assertEq(rewarder.owner(), address(this), "test_Deploy::7");
 
-        rewarder = rewarderFactory.createRewarder(rewardToken, lpToken1, tokenPerSec, true);
+        rewarder = rewarderFactory.createRewarder(IERC20(address(0)), lpToken1, tokenPerSec, true);
         assertTrue(rewarder.isNative(), "test_Deploy::8");
     }
 
@@ -50,7 +53,14 @@ contract SimpleRewarderPerSecTest is TestHelper {
         vm.assume(aptFarm.code.length == 0);
 
         vm.expectRevert(IRewarderFactory.RewarderFactory__InvalidAddress.selector);
-        rewarderFactory = new RewarderFactory(IAPTFarm(aptFarm));
+        rewarderFactory = new RewarderFactory(IAPTFarm(aptFarm),IWrappedNative(address(wNative)));
+    }
+
+    function test_Revert_DeployWithInvalidWrappedNative(address wNative) public {
+        vm.assume(wNative.code.length == 0);
+
+        vm.expectRevert(IRewarderFactory.RewarderFactory__InvalidAddress.selector);
+        rewarderFactory = new RewarderFactory(aptFarm,IWrappedNative(address(wNative)));
     }
 
     function test_Receive(uint256 amount) public {
@@ -111,7 +121,10 @@ contract SimpleRewarderPerSecTest is TestHelper {
         assertEq(amount, 0, "test_OnReward::5");
         assertEq(unpaidRewards, 0, "test_OnReward::6");
 
-        aptFarm.withdraw(0, 0);
+        uint256[] memory pids = new uint256[](1);
+        pids[0] = 0;
+
+        aptFarm.harvestRewards(pids);
 
         assertEq(rewardToken.balanceOf(address(this)), balanceAfter, "test_OnReward::7");
 
@@ -136,14 +149,88 @@ contract SimpleRewarderPerSecTest is TestHelper {
         assertEq(bonusTokenAddress, address(rewardToken), "test_OnReward::10");
         assertEq(bonusTokenSymbol, "ERC20Mock", "test_OnReward::11");
 
-        uint256[] memory pids = new uint256[](1);
-        pids[0] = 0;
-
         balanceBefore = rewardToken.balanceOf(address(this));
         aptFarm.harvestRewards(pids);
         balanceAfter = rewardToken.balanceOf(address(this));
 
         assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnReward::12");
+    }
+
+    function test_OnRewardNative(uint256 tokenPerSec, uint256 amountDeposited, uint256 depositTime) public {
+        depositTime = bound(depositTime, timePassedLowerBound, timePassedUpperBound);
+        tokenPerSec = bound(tokenPerSec, joePerSecLowerBound, joePerSecUpperBound);
+        amountDeposited = bound(amountDeposited, apSupplyLowerBound, apSupplyUpperBound);
+
+        // TODO: change rewardToken address to wNative
+        rewarder = rewarderFactory.createRewarder(IERC20(address(0)), lpToken1, tokenPerSec, true);
+
+        deal(address(rewarder), 1e50);
+        _add(lpToken1, 1e18, rewarder);
+        _deposit(0, amountDeposited);
+
+        (uint256 amount, uint256 rewardDebt, uint256 unpaidRewards) = rewarder.userInfo(address(this));
+        assertEq(amount, amountDeposited, "test_OnRewardNative::1");
+        assertEq(rewardDebt, 0, "test_OnRewardNative::2");
+        assertEq(unpaidRewards, 0, "test_OnRewardNative::3");
+
+        skip(depositTime);
+
+        uint256 balanceBefore = nativeReceived;
+
+        aptFarm.withdraw(0, amountDeposited);
+
+        uint256 balanceAfter = nativeReceived;
+        uint256 rewards = tokenPerSec * depositTime;
+
+        (amount, rewardDebt, unpaidRewards) = rewarder.userInfo(address(this));
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnRewardNative::4");
+        assertEq(amount, 0, "test_OnRewardNative::5");
+        assertEq(unpaidRewards, 0, "test_OnRewardNative::6");
+
+        uint256[] memory pids = new uint256[](1);
+        pids[0] = 0;
+
+        aptFarm.harvestRewards(pids);
+
+        assertEq(nativeReceived, balanceAfter, "test_OnRewardNative::7");
+
+        _deposit(0, amountDeposited);
+
+        skip(depositTime);
+
+        balanceBefore = nativeReceived;
+        aptFarm.emergencyWithdraw(0);
+        balanceAfter = nativeReceived;
+
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnRewardNative::8");
+
+        _deposit(0, amountDeposited);
+
+        skip(depositTime);
+
+        (, address bonusTokenAddress, string memory bonusTokenSymbol, uint256 pendingBonusToken) =
+            aptFarm.pendingTokens(0, address(this));
+
+        assertApproxEqRel(pendingBonusToken, rewards, expectedPrecision, "test_OnRewardNative::9");
+        assertEq(bonusTokenAddress, address(0), "test_OnRewardNative::10");
+        assertEq(bonusTokenSymbol, "", "test_OnRewardNative::11");
+
+        balanceBefore = nativeReceived;
+        aptFarm.harvestRewards(pids);
+        balanceAfter = nativeReceived;
+
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnRewardNative::12");
+
+        // Test receive deposits with no receive function
+        blockReceive = true;
+
+        skip(depositTime);
+
+        balanceBefore = wNative.balanceOf(address(this));
+        aptFarm.harvestRewards(pids);
+        balanceAfter = wNative.balanceOf(address(this));
+
+        assertApproxEqRel(balanceAfter - balanceBefore, rewards, expectedPrecision, "test_OnRewardNative::13");
     }
 
     function test_UpdateRewarder() public {
@@ -217,5 +304,13 @@ contract SimpleRewarderPerSecTest is TestHelper {
         rewarderFactory.grantCreatorRole(bob);
 
         assertTrue(rewarderFactory.hasRole(role, bob), "test_RoleManagement::6");
+    }
+
+    receive() external payable {
+        if (blockReceive) {
+            revert("receive not allowed");
+        }
+
+        nativeReceived += msg.value;
     }
 }

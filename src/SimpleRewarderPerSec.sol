@@ -10,6 +10,7 @@ import {ReentrancyGuardUpgradeable} from
 import {Clone} from "joe-v2-1/libraries/Clone.sol";
 
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
+import {IWrappedNative} from "./interfaces/IWrappedNative.sol";
 import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
 
 /**
@@ -18,7 +19,7 @@ import {ISimpleRewarderPerSec} from "./interfaces/ISimpleRewarderPerSec.sol";
  *
  * It assumes no minting rights, so requires a set amount of YOUR_TOKEN to be transferred to this contract prior.
  * E.g. say you've allocated 100,000 XYZ to the JOE-XYZ farm over 30 days. Then you would need to transfer
- * 100,000 XYZ and set the block reward accordingly so it's fully distributed after 30 days.
+ * 100,000 XYZ and set the reward per sec accordingly so it's fully distributed after 30 days.
  *
  *
  * Issue with the previous version is that this fraction, `tokenReward*(ACC_TOKEN_PRECISION)/(aptSupply)`,
@@ -116,6 +117,13 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
+     * @notice Wrapped native token.
+     */
+    function wNative() external pure override returns (IWrappedNative) {
+        return _wNative();
+    }
+
+    /**
      * @notice Returns true if the reward token is the native currency.
      */
     function isNative() external pure override returns (bool) {
@@ -142,37 +150,40 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @param _aptAmount Number of LP tokens the user has
      */
     function onJoeReward(address _user, uint256 _aptAmount) external override onlyAPTFarm nonReentrant {
-        _updateFarm();
-
-        FarmInfo memory farm = farmInfo;
+        FarmInfo memory farm = _updateFarm();
         UserInfo storage user = userInfo[_user];
 
+        uint256 previousUserAmount = user.amount;
+        uint256 previousUserRewardDebt = user.rewardDebt;
+
+        user.amount = _aptAmount;
+        user.rewardDebt = (_aptAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
+
         uint256 pending;
-        if (user.amount > 0) {
-            pending = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - user.rewardDebt + user.unpaidRewards;
+        if (previousUserAmount > 0) {
+            pending = (previousUserAmount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION - previousUserRewardDebt
+                + user.unpaidRewards;
 
             uint256 rewardBalance = _balance();
             if (_isNative()) {
                 if (pending > rewardBalance) {
-                    _transferNative(_user, rewardBalance);
                     user.unpaidRewards = pending - rewardBalance;
+                    _transferNative(_user, rewardBalance);
                 } else {
-                    _transferNative(_user, pending);
                     user.unpaidRewards = 0;
+                    _transferNative(_user, pending);
                 }
             } else {
                 if (pending > rewardBalance) {
-                    _rewardToken().safeTransfer(_user, rewardBalance);
                     user.unpaidRewards = pending - rewardBalance;
+                    _rewardToken().safeTransfer(_user, rewardBalance);
                 } else {
-                    _rewardToken().safeTransfer(_user, pending);
                     user.unpaidRewards = 0;
+                    _rewardToken().safeTransfer(_user, pending);
                 }
             }
         }
 
-        user.amount = _aptAmount;
-        user.rewardDebt = (user.amount * farm.accTokenPerShare) / ACC_TOKEN_PRECISION;
         emit OnReward(_user, pending - user.unpaidRewards);
     }
 
@@ -217,6 +228,10 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @param _tokenPerSec The number of tokens to distribute per second
      */
     function setRewardRate(uint256 _tokenPerSec) external onlyOwner {
+        if (_tokenPerSec > 1e30) {
+            revert SimpleRewarderPerSec__InvalidTokenPerSec();
+        }
+
         _updateFarm();
 
         uint256 oldRate = tokenPerSec;
@@ -230,7 +245,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * withdrawal of remaining tokens.
      * @param token Address of token to withdraw
      */
-    function emergencyWithdraw(address token) public onlyOwner {
+    function emergencyWithdraw(address token) external onlyOwner {
         if (token == address(0)) {
             _transferNative(msg.sender, address(this).balance);
         } else {
@@ -263,26 +278,57 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
+    /**
+     * @dev Sends native tokens to recipient.
+     * @dev Native rewards will be wrapped into wNative if the staker can't receive native tokens.
+     * @param to Recipient of the transfer
+     * @param amount Amount to transfer
+     */
     function _transferNative(address to, uint256 amount) internal {
         (bool success,) = to.call{value: amount}("");
         if (!success) {
-            revert SimpleRewarderPerSec__TransferFailed();
+            _wNative().deposit{value: amount}();
+            IERC20(_wNative()).safeTransfer(to, amount);
         }
     }
 
+    /**
+     * @dev Returns the address of the reward token.
+     * @return Address of the reward token
+     */
     function _rewardToken() internal pure returns (IERC20) {
         return IERC20(_getArgAddress(0));
     }
 
+    /**
+     * @dev Returns the address of the wrapped native token.
+     * @return Address of the wrapped native token
+     */
     function _apToken() internal pure returns (IERC20) {
         return IERC20(_getArgAddress(20));
     }
 
+    /**
+     * @dev Returns the address of the APT Farm.
+     * @return Address of the APT Farm
+     */
     function _aptFarm() internal pure returns (IAPTFarm) {
         return IAPTFarm(_getArgAddress(40));
     }
 
+    /**
+     * @dev Returns the address of the wrapped native token.
+     * @return Address of the wrapped native token
+     */
+    function _wNative() internal pure returns (IWrappedNative) {
+        return IWrappedNative(_getArgAddress(60));
+    }
+
+    /**
+     * @dev Returns true if the reward token is native.
+     * @return True if the reward token is native
+     */
     function _isNative() internal pure returns (bool) {
-        return _getArgUint8(60) > 0;
+        return _getArgUint8(80) > 0;
     }
 }

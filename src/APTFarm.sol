@@ -19,6 +19,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
     uint256 private constant ACC_TOKEN_PRECISION = 1e36;
 
+    uint256 private constant MAX_JOE_PER_SEC = 100e18;
+
     /**
      * @notice Whether if the given token already has a farm or not.
      */
@@ -45,9 +47,46 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
     mapping(IERC20 => uint256) public override apTokenBalances;
 
     /**
+     * @dev joePerSec is limited to 100 tokens per second to avoid overflow issues
+     * @param joePerSec The amount of joe tokens that will be given per second.
+     */
+    modifier validateJoePerSec(uint256 joePerSec) {
+        if (joePerSec > MAX_JOE_PER_SEC) {
+            revert APTFarm__InvalidJoePerSec();
+        }
+        _;
+    }
+
+    /**
+     * @dev Checks if the given amount is not zero.
+     * @param amount The amount to validate.
+     */
+    modifier nonZeroAmount(uint256 amount) {
+        if (amount == 0) {
+            revert APTFarm__ZeroAmount();
+        }
+        _;
+    }
+
+    /**
+     * @dev Checks if the given array is not empty.
+     * @param array The uint256 array to validate.
+     */
+    modifier validateArrayLength(uint256[] calldata array) {
+        if (array.length == 0) {
+            revert APTFarm__EmptyArray();
+        }
+        _;
+    }
+
+    /**
      * @param _joe The joe token contract address.
      */
     constructor(IERC20 _joe) {
+        if (address(_joe) == address(0)) {
+            revert APTFarm__ZeroAddress();
+        }
+
         joe = _joe;
     }
 
@@ -58,10 +97,18 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         farms = _farmInfo.length;
     }
 
+    /**
+     * @notice Returns true if the given APT token has a farm.
+     * @param apToken Address of the APT ERC-20 token.
+     */
     function hasFarm(address apToken) external view override returns (bool) {
         return _vaultsWithFarms.contains(apToken);
     }
 
+    /**
+     * @notice Returns the farm id of the given APT token.
+     * @param apToken Address of the APT ERC-20 token.
+     */
     function vaultFarmId(address apToken) external view override returns (uint256) {
         return _vaultsWithFarms.get(apToken);
     }
@@ -91,7 +138,16 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param apToken Address of the APT ERC-20 token.
      * @param rewarder Address of the rewarder delegate.
      */
-    function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder) external override onlyOwner {
+    function add(uint256 joePerSec, IERC20 apToken, IRewarder rewarder)
+        external
+        override
+        onlyOwner
+        validateJoePerSec(joePerSec)
+    {
+        if (address(apToken) == address(joe)) {
+            revert APTFarm__InvalidAPToken();
+        }
+
         uint256 newPid = _farmInfo.length;
 
         if (!_vaultsWithFarms.set(address(apToken), newPid)) {
@@ -125,7 +181,12 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param rewarder Address of the rewarder delegate.
      * @param overwrite True if _rewarder should be `set`. Otherwise `_rewarder` is ignored.
      */
-    function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite) external override onlyOwner {
+    function set(uint256 pid, uint256 joePerSec, IRewarder rewarder, bool overwrite)
+        external
+        override
+        onlyOwner
+        validateJoePerSec(joePerSec)
+    {
         FarmInfo memory farm = _updateFarm(pid);
         farm.joePerSec = joePerSec;
 
@@ -174,7 +235,14 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         IRewarder rewarder = farm.rewarder;
         if (address(rewarder) != address(0)) {
             bonusTokenAddress = address(rewarder.rewardToken());
-            bonusTokenSymbol = IERC20Metadata(bonusTokenAddress).symbol();
+
+            (bool success, bytes memory data) =
+                bonusTokenAddress.staticcall(abi.encodeWithSelector(IERC20Metadata.symbol.selector));
+
+            if (success && data.length > 0) {
+                bonusTokenSymbol = abi.decode(data, (string));
+            }
+
             pendingBonusToken = rewarder.pendingTokens(user);
         }
     }
@@ -184,7 +252,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param pid The index of the farm. See `_farmInfo`.
      * @param amount APT token amount to deposit.
      */
-    function deposit(uint256 pid, uint256 amount) external override nonReentrant {
+    function deposit(uint256 pid, uint256 amount) external override nonReentrant nonZeroAmount(amount) {
         FarmInfo memory farm = _updateFarm(pid);
         UserInfo storage user = _userInfo[pid][msg.sender];
 
@@ -218,7 +286,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @param pid The index of the farm. See `_farmInfo`.
      * @param amount APT token amount to withdraw.
      */
-    function withdraw(uint256 pid, uint256 amount) external override nonReentrant {
+    function withdraw(uint256 pid, uint256 amount) external override nonReentrant nonZeroAmount(amount) {
         FarmInfo memory farm = _updateFarm(pid);
         UserInfo storage user = _userInfo[pid][msg.sender];
 
@@ -275,7 +343,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      * @notice Harvest rewards from the APTFarm for all the given farms.
      * @param pids The indices of the farms to harvest from.
      */
-    function harvestRewards(uint256[] calldata pids) external override nonReentrant {
+    function harvestRewards(uint256[] calldata pids) external override nonReentrant validateArrayLength(pids) {
         uint256 length = pids.length;
         for (uint256 i = 0; i < length; i++) {
             uint256 pid = pids[i];
@@ -340,6 +408,8 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
      */
     function _updateFarm(uint256 pid) internal returns (FarmInfo memory) {
         FarmInfo memory farm = _farmInfo[pid];
+
+        if (farm.lastRewardTimestamp == 0) revert APTFarm__InvalidFarmIndex();
 
         if (block.timestamp > farm.lastRewardTimestamp) {
             uint256 apTokenSupply = apTokenBalances[farm.apToken];

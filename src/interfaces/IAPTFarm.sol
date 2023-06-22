@@ -6,6 +6,12 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IE
 import {IRewarder} from "./IRewarder.sol";
 
 interface IAPTFarm {
+    error APTFarm__InvalidAPToken();
+    error APTFarm__ZeroAmount();
+    error APTFarm__EmptyArray();
+    error APTFarm__ZeroAddress();
+    error APTFarm__InvalidJoePerSec();
+    error APTFarm__InvalidFarmIndex();
     error APTFarm__TokenAlreadyHasFarm(address apToken);
     error APTFarm__InsufficientDeposit(uint256 deposit, uint256 amountWithdrawn);
 

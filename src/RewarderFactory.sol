@@ -9,6 +9,7 @@ import {ImmutableClone} from "joe-v2-1/libraries/ImmutableClone.sol";
 
 import {SimpleRewarderPerSec} from "./SimpleRewarderPerSec.sol";
 import {IRewarderFactory} from "./interfaces/IRewarderFactory.sol";
+import {IWrappedNative} from "./interfaces/IWrappedNative.sol";
 import {IAPTFarm} from "./interfaces/IAPTFarm.sol";
 
 contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
@@ -21,6 +22,12 @@ contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
      * @notice The address of the APTFarm contract.
      */
     IAPTFarm public immutable override aptFarm;
+
+    /**
+     * @notice The address of the wNative contract.
+     * @dev Native rewards will be wrapped into wNative if the staker can't receive native tokens.
+     */
+    IWrappedNative public immutable override wNative;
 
     /**
      * @notice The address of the SimpleRewarderPerSec implementation.
@@ -37,13 +44,18 @@ contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
      */
     uint256 private _nounce;
 
-    constructor(IAPTFarm _aptFarm) {
+    constructor(IAPTFarm _aptFarm, IWrappedNative _wNative) {
         if (!Address.isContract(address(_aptFarm))) {
+            revert RewarderFactory__InvalidAddress();
+        }
+
+        if (!Address.isContract(address(_wNative))) {
             revert RewarderFactory__InvalidAddress();
         }
 
         simpleRewarderImplementation = address(new SimpleRewarderPerSec());
         aptFarm = _aptFarm;
+        wNative = _wNative;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REWARDER_CREATOR_ROLE, msg.sender);
@@ -78,13 +90,13 @@ contract RewarderFactory is AccessControl, Ownable2Step, IRewarderFactory {
         onlyRole(REWARDER_CREATOR_ROLE)
         returns (SimpleRewarderPerSec rewarder)
     {
-        if (!Address.isContract(address(rewardToken)) || !Address.isContract(address(apToken))) {
+        if ((!isNative && !Address.isContract(address(rewardToken))) || !Address.isContract(address(apToken))) {
             revert RewarderFactory__InvalidAddress();
         }
 
         address rewarderAddress = ImmutableClone.cloneDeterministic(
             simpleRewarderImplementation,
-            abi.encodePacked(rewardToken, apToken, aptFarm, isNative),
+            abi.encodePacked(rewardToken, apToken, aptFarm, wNative, isNative),
             keccak256(abi.encode(_nounce++))
         );
 
