@@ -3,7 +3,6 @@ pragma solidity 0.8.10;
 
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ILBPair} from "joe-v2/interfaces/ILBPair.sol";
-import {FeeHelper} from "joe-v2/libraries/FeeHelper.sol";
 
 import {
     IAPTFarmLens,
@@ -174,17 +173,17 @@ contract APTFarmLens is IAPTFarmLens {
      * @return vaultsData The vault data array
      */
     function _getAllVaults() internal view returns (VaultData[] memory vaultsData) {
-        uint256 totalSimpleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Simple);
         uint256 totalOracleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Oracle);
+        uint256 totalSimpleVaults = vaultFactory.getNumberOfVaults(IVaultFactory.VaultType.Simple);
 
-        vaultsData = new VaultData[](totalSimpleVaults + totalOracleVaults);
-
-        for (uint256 i = 0; i < totalSimpleVaults; i++) {
-            vaultsData[i] = _getVaultAt(IVaultFactory.VaultType.Simple, i);
-        }
+        vaultsData = new VaultData[](totalOracleVaults + totalSimpleVaults);
 
         for (uint256 i = 0; i < totalOracleVaults; i++) {
-            vaultsData[totalSimpleVaults + i] = _getVaultAt(IVaultFactory.VaultType.Oracle, i);
+            vaultsData[i] = _getVaultAt(IVaultFactory.VaultType.Oracle, i);
+        }
+
+        for (uint256 i = 0; i < totalSimpleVaults; i++) {
+            vaultsData[totalOracleVaults + i] = _getVaultAt(IVaultFactory.VaultType.Simple, i);
         }
     }
 
@@ -267,7 +266,6 @@ contract APTFarmLens is IAPTFarmLens {
 
         IStrategy strategy = vault.getStrategy();
         ILBPair lbPair = vault.getPair();
-        FeeHelper.FeeParameters memory feeParameters = lbPair.feeParameters();
 
         vaultData = VaultData({
             vault: vault,
@@ -277,7 +275,7 @@ contract APTFarmLens is IAPTFarmLens {
             isDepositsPaused: vault.isDepositsPaused(),
             isInEmergencyMode: address(strategy) == address(0) && (tokenXBalance > 0 || tokenYBalance > 0),
             lbPair: address(lbPair),
-            lbPairBinStep: feeParameters.binStep,
+            lbPairBinStep: lbPair.getBinStep(),
             tokenX: tokenX,
             tokenY: tokenY,
             tokenXBalance: tokenXBalance,
