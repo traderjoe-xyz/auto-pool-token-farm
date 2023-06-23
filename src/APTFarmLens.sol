@@ -2,7 +2,7 @@
 pragma solidity 0.8.10;
 
 import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {ILBPair} from "joe-v2-1/interfaces/ILBPair.sol";
+import {ILBPair} from "joe-v2/interfaces/ILBPair.sol";
 
 import {
     IAPTFarmLens,
@@ -265,7 +265,7 @@ contract APTFarmLens is IAPTFarmLens {
         (uint256 tokenXBalance, uint256 tokenYBalance) = vault.getBalances();
 
         IStrategy strategy = vault.getStrategy();
-        ILBPair lbPair = ILBPair(address(vault.getPair()));
+        ILBPair lbPair = vault.getPair();
 
         vaultData = VaultData({
             vault: vault,
