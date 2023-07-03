@@ -166,9 +166,10 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         // Sanity check to ensure apToken is an ERC20 token
         apToken.balanceOf(address(this));
+
         // Sanity check if we add a rewarder
         if (address(rewarder) != address(0)) {
-            rewarder.onJoeReward(address(0), 0);
+            rewarder.onJoeReward(address(0), 0, 0);
         }
 
         emit Add(newPid, joePerSec, apToken, rewarder);
@@ -192,7 +193,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         if (overwrite) {
             farm.rewarder = rewarder;
-            rewarder.onJoeReward(address(0), 0); // sanity check
+            rewarder.onJoeReward(address(0), 0, apTokenBalances[farm.apToken]); // sanity check
         }
 
         _farmInfo[pid] = farm;
@@ -264,10 +265,11 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         uint256 receivedAmount = farm.apToken.balanceOf(address(this)) - balanceBefore;
 
         uint256 userAmount = userAmountBefore + receivedAmount;
+        uint256 apTokenBalanceBefore = apTokenBalances[farm.apToken];
 
         user.rewardDebt = (userAmount * farm.accJoePerShare) / ACC_TOKEN_PRECISION;
         user.amount = userAmount;
-        apTokenBalances[farm.apToken] += receivedAmount;
+        apTokenBalances[farm.apToken] = apTokenBalanceBefore + receivedAmount;
 
         if (userAmountBefore > 0 || userUnpaidRewards > 0) {
             user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, farm.accJoePerShare);
@@ -275,7 +277,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         IRewarder _rewarder = farm.rewarder;
         if (address(_rewarder) != address(0)) {
-            _rewarder.onJoeReward(msg.sender, userAmount);
+            _rewarder.onJoeReward(msg.sender, userAmount, apTokenBalanceBefore);
         }
 
         emit Deposit(msg.sender, pid, receivedAmount);
@@ -298,9 +300,11 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         }
 
         uint256 userAmount = userAmountBefore - amount;
+        uint256 apTokenBalanceBefore = apTokenBalances[farm.apToken];
+
         user.rewardDebt = (userAmount * farm.accJoePerShare) / ACC_TOKEN_PRECISION;
         user.amount = userAmount;
-        apTokenBalances[farm.apToken] -= amount;
+        apTokenBalances[farm.apToken] = apTokenBalanceBefore - amount;
 
         if (userAmountBefore > 0 || userUnpaidRewards > 0) {
             user.unpaidRewards = _harvest(userAmountBefore, userRewardDebt, userUnpaidRewards, pid, farm.accJoePerShare);
@@ -308,7 +312,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
         IRewarder _rewarder = farm.rewarder;
         if (address(_rewarder) != address(0)) {
-            _rewarder.onJoeReward(msg.sender, userAmount);
+            _rewarder.onJoeReward(msg.sender, userAmount, apTokenBalanceBefore);
         }
 
         farm.apToken.safeTransfer(msg.sender, amount);
@@ -325,13 +329,15 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
         UserInfo storage user = _userInfo[pid][msg.sender];
 
         uint256 amount = user.amount;
+        uint256 apTokenBalanceBefore = apTokenBalances[farm.apToken];
+
         user.amount = 0;
         user.rewardDebt = 0;
-        apTokenBalances[farm.apToken] -= amount;
+        apTokenBalances[farm.apToken] = apTokenBalanceBefore - amount;
 
         IRewarder _rewarder = farm.rewarder;
         if (address(_rewarder) != address(0)) {
-            _rewarder.onJoeReward(msg.sender, 0);
+            _rewarder.onJoeReward(msg.sender, 0, apTokenBalanceBefore);
         }
 
         // Note: transfer can fail or succeed if `amount` is zero.
@@ -362,7 +368,7 @@ contract APTFarm is Ownable2Step, ReentrancyGuard, IAPTFarm {
 
             IRewarder rewarder = farm.rewarder;
             if (address(rewarder) != address(0)) {
-                rewarder.onJoeReward(msg.sender, userAmount);
+                rewarder.onJoeReward(msg.sender, userAmount, apTokenBalances[farm.apToken]);
             }
         }
 

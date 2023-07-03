@@ -149,8 +149,13 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @param _user Address of user
      * @param _aptAmount Number of LP tokens the user has
      */
-    function onJoeReward(address _user, uint256 _aptAmount) external override onlyAPTFarm nonReentrant {
-        FarmInfo memory farm = _updateFarm();
+    function onJoeReward(address _user, uint256 _aptAmount, uint256 aptSupply)
+        external
+        override
+        onlyAPTFarm
+        nonReentrant
+    {
+        FarmInfo memory farm = _updateFarm(aptSupply);
         UserInfo storage user = userInfo[_user];
 
         uint256 previousUserAmount = user.amount;
@@ -192,7 +197,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
      * @return farm Returns the farm that was updated.
      */
     function updateFarm() external returns (FarmInfo memory farm) {
-        farm = _updateFarm();
+        farm = _updateFarm(_aptFarm().apTokenBalances(_apToken()));
     }
 
     /**
@@ -232,7 +237,7 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
             revert SimpleRewarderPerSec__InvalidTokenPerSec();
         }
 
-        _updateFarm();
+        _updateFarm(_aptFarm().apTokenBalances(_apToken()));
 
         uint256 oldRate = tokenPerSec;
         tokenPerSec = _tokenPerSec;
@@ -253,12 +258,10 @@ contract SimpleRewarderPerSec is Ownable2StepUpgradeable, ReentrancyGuardUpgrade
         }
     }
 
-    function _updateFarm() internal returns (FarmInfo memory farm) {
+    function _updateFarm(uint256 aptSupply) internal returns (FarmInfo memory farm) {
         farm = farmInfo;
 
         if (block.timestamp > farm.lastRewardTimestamp) {
-            uint256 aptSupply = _apToken().balanceOf(address(_aptFarm()));
-
             if (aptSupply > 0) {
                 uint256 timeElapsed = block.timestamp - farm.lastRewardTimestamp;
                 uint256 tokenReward = timeElapsed * tokenPerSec;
